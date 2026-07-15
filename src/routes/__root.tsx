@@ -85,6 +85,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:description", content: "لوحة تنسيق فريق إنتاج بودكاست QRTA — تابع المهام والمعدات لأيام التصوير من 2 إلى 5 آب." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "متابعة إنتاج بودكاست QRTA" },
+      { name: "twitter:description", content: "لوحة تنسيق فريق إنتاج بودكاست QRTA — تابع المهام والمعدات لأيام التصوير من 2 إلى 5 آب." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/cd90b96d-abff-46db-b09f-c171666b2434" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/cd90b96d-abff-46db-b09f-c171666b2434" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
