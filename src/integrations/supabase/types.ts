@@ -14,7 +14,137 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      activity_log: {
+        Row: {
+          action_type: string
+          actor_name: string | null
+          created_at: string
+          id: string
+          item_id: string | null
+          item_type: string
+        }
+        Insert: {
+          action_type: string
+          actor_name?: string | null
+          created_at?: string
+          id?: string
+          item_id?: string | null
+          item_type: string
+        }
+        Update: {
+          action_type?: string
+          actor_name?: string | null
+          created_at?: string
+          id?: string
+          item_id?: string | null
+          item_type?: string
+        }
+        Relationships: []
+      }
+      equipment: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          is_secured: boolean
+          name: string
+          notes: string | null
+          quantity: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_secured?: boolean
+          name: string
+          notes?: string | null
+          quantity?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_secured?: boolean
+          name?: string
+          notes?: string | null
+          quantity?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          created_at: string
+          details: string | null
+          due_date: string | null
+          id: string
+          is_completed: boolean
+          team_member_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          details?: string | null
+          due_date?: string | null
+          id?: string
+          is_completed?: boolean
+          team_member_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          details?: string | null
+          due_date?: string | null
+          id?: string
+          is_completed?: boolean
+          team_member_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_team_member_id_fkey"
+            columns: ["team_member_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_members: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          id: string
+          name: string
+          role: string
+          sort_order: number
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          role: string
+          sort_order?: number
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          role?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
