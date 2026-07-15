@@ -43,7 +43,26 @@ function EquipmentPage() {
       });
       if (logError) console.error("Activity log error:", logError);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["equipment"] }),
+    onMutate: async (newItem) => {
+      await qc.cancelQueries({ queryKey: ["equipment"] });
+      const previous = qc.getQueryData(["equipment"]);
+      qc.setQueryData(["equipment"], (old: any) =>
+        old?.map((item: any) =>
+          item.id === newItem.id ? { ...item, is_secured: !newItem.is_secured } : item
+        )
+      );
+      if (!newItem.is_secured) {
+        toast.success("تم جلب المعدة بنجاح!");
+      }
+      return { previous };
+    },
+    onError: (err, newItem, context) => {
+      qc.setQueryData(["equipment"], context?.previous);
+      toast.error("حدث خطأ في الحفظ");
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["equipment"] });
+    },
   });
 
   const updateQty = useMutation({

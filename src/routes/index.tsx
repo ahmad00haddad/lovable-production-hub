@@ -36,6 +36,10 @@ function Home() {
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col px-5 pb-24 pt-10">
       <header className="mb-8 text-center">
+        <div className="mb-6 overflow-hidden rounded-3xl border border-white/10 shadow-2xl relative aspect-[21/9]">
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-deep/80 to-transparent z-10 pointer-events-none"></div>
+          <img src="/header-bg.png" alt="Podcast Production Header" className="h-full w-full object-cover opacity-90" />
+        </div>
         <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[11px] font-medium tracking-wide text-amber">
           فترة التصوير · 2 – 5 آب
         </div>

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { teamQuery, tasksQuery } from "@/lib/queries";
 import { ProgressBar } from "@/components/ProgressRing";
-import { ChevronRight, Plus, Check, Trash2, Home } from "lucide-react";
+import { ChevronRight, Plus, Check, Trash2, Home, Edit2, Calendar, X } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/member/$id")({
@@ -31,6 +31,30 @@ function MemberPage() {
 
   const [filter, setFilter] = useState<Filter>("all");
   const [newTitle, setNewTitle] = useState("");
+  const [editingTask, setEditingTask] = useState<{ id: string; title: string; due_date: string } | null>(null);
+
+  const updateTaskDetails = useMutation({
+    mutationFn: async (t: { id: string; title: string; due_date: string | null }) => {
+      const { error } = await supabase
+        .from("tasks")
+        .update({ title: t.title, due_date: t.due_date || null })
+        .eq("id", t.id);
+      if (error) throw error;
+      
+      const { error: logError } = await supabase.from("activity_log").insert({
+        actor_name: member?.name || "عضو بالفريق",
+        item_type: "مهمة",
+        item_id: t.id,
+        action_type: "تعديل المهمة"
+      });
+      if (logError) console.error("Activity log error:", logError);
+    },
+    onSuccess: () => {
+      setEditingTask(null);
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      toast.success("تم التحديث");
+    },
+  });
 
   const toggle = useMutation({
     mutationFn: async (t: { id: string; is_completed: boolean }) => {
@@ -48,7 +72,26 @@ function MemberPage() {
       });
       if (logError) console.error("Activity log error:", logError);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
+    onMutate: async (newItem) => {
+      await qc.cancelQueries({ queryKey: ["tasks"] });
+      const previous = qc.getQueryData(["tasks", id]);
+      qc.setQueryData(["tasks", id], (old: any) =>
+        old?.map((t: any) =>
+          t.id === newItem.id ? { ...t, is_completed: !newItem.is_completed } : t
+        )
+      );
+      if (!newItem.is_completed) {
+        toast.success("تم إنجاز المهمة، بطل!");
+      }
+      return { previous };
+    },
+    onError: (err, newItem, context) => {
+      qc.setQueryData(["tasks", id], context?.previous);
+      toast.error("حدث خطأ في الحفظ");
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+    },
   });
 
   const addTask = useMutation({
@@ -135,39 +178,97 @@ function MemberPage() {
         {filtered.map((t) => (
           <li
             key={t.id}
-            className={`glass-card group flex items-start gap-3 rounded-2xl p-4 transition ${
-              t.is_completed ? "opacity-55" : ""
+            className={`glass-card group flex flex-col gap-3 rounded-2xl p-4 transition ${
+              t.is_completed && editingTask?.id !== t.id ? "opacity-55" : ""
             }`}
           >
-            <button
-              onClick={() => toggle.mutate({ id: t.id, is_completed: t.is_completed })}
-              className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-md border transition ${
-                t.is_completed
-                  ? "border-transparent bg-amber-gradient"
-                  : "border-white/25 bg-white/5 active:scale-90"
-              }`}
-              aria-label="إتمام"
-            >
-              {t.is_completed && <Check size={14} strokeWidth={3} />}
-            </button>
-            <div className="min-w-0 flex-1">
-              <div
-                className={`text-sm leading-relaxed ${
-                  t.is_completed ? "text-muted-foreground line-through" : ""
-                }`}
+            {editingTask?.id === t.id ? (
+              <form
+                className="flex w-full flex-col gap-3"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (editingTask.title.trim()) {
+                    updateTaskDetails.mutate({
+                      id: t.id,
+                      title: editingTask.title,
+                      due_date: editingTask.due_date
+                    });
+                  }
+                }}
               >
-                {t.title}
+                <input
+                  autoFocus
+                  value={editingTask.title}
+                  onChange={(e) => setEditingTask({ ...editingTask, title: e.target.value })}
+                  className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none"
+                  placeholder="عنوان المهمة"
+                />
+                <div className="flex items-center gap-2">
+                  <div className="flex flex-1 items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                    <Calendar size={14} className="text-muted-foreground" />
+                    <input
+                      type="date"
+                      value={editingTask.due_date}
+                      onChange={(e) => setEditingTask({ ...editingTask, due_date: e.target.value })}
+                      className="flex-1 bg-transparent text-sm outline-none [color-scheme:dark]"
+                    />
+                  </div>
+                  <button type="submit" className="rounded-lg bg-amber-gradient px-4 py-2 text-sm font-bold text-black disabled:opacity-50" disabled={!editingTask.title.trim() || updateTaskDetails.isPending}>
+                    حفظ
+                  </button>
+                  <button type="button" onClick={() => setEditingTask(null)} className="rounded-lg border border-white/10 bg-white/5 p-2 text-muted-foreground">
+                    <X size={18} />
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="flex w-full items-start gap-3">
+                <button
+                  onClick={() => toggle.mutate({ id: t.id, is_completed: t.is_completed })}
+                  className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-md border transition ${
+                    t.is_completed
+                      ? "border-transparent bg-amber-gradient"
+                      : "border-white/25 bg-white/5 active:scale-90"
+                  }`}
+                  aria-label="إتمام"
+                >
+                  {t.is_completed && <Check size={14} strokeWidth={3} />}
+                </button>
+                <div className="min-w-0 flex-1">
+                  <div
+                    className={`text-sm leading-relaxed ${
+                      t.is_completed ? "text-muted-foreground line-through" : ""
+                    }`}
+                  >
+                    {t.title}
+                  </div>
+                  {t.due_date && (
+                    <div className="mt-2 flex items-center gap-1.5 text-[11px] text-amber">
+                      <Calendar size={12} />
+                      <span dir="ltr" className="font-medium">{new Date(t.due_date).toLocaleDateString('en-CA')}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
+                  <button
+                    onClick={() => setEditingTask({ id: t.id, title: t.title, due_date: t.due_date || "" })}
+                    className="text-muted-foreground hover:text-white"
+                    aria-label="تعديل"
+                  >
+                    <Edit2 size={15} />
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm("حذف المهمة؟")) deleteTask.mutate(t.id);
+                    }}
+                    className="text-muted-foreground hover:text-white"
+                    aria-label="حذف"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
               </div>
-            </div>
-            <button
-              onClick={() => {
-                if (confirm("حذف المهمة؟")) deleteTask.mutate(t.id);
-              }}
-              className="opacity-0 transition group-hover:opacity-100 text-muted-foreground active:opacity-100"
-              aria-label="حذف"
-            >
-              <Trash2 size={15} />
-            </button>
+            )}
           </li>
         ))}
         {filtered.length === 0 && (
