@@ -39,6 +39,14 @@ function MemberPage() {
         .update({ is_completed: !t.is_completed })
         .eq("id", t.id);
       if (error) throw error;
+
+      const { error: logError } = await supabase.from("activity_log").insert({
+        actor_name: member?.name || "عضو بالفريق",
+        item_type: "مهمة",
+        item_id: t.id,
+        action_type: !t.is_completed ? "إتمام المهمة" : "إلغاء إتمام المهمة"
+      });
+      if (logError) console.error("Activity log error:", logError);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
   });

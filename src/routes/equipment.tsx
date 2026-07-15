@@ -34,6 +34,14 @@ function EquipmentPage() {
         .update({ is_secured: !e.is_secured })
         .eq("id", e.id);
       if (error) throw error;
+
+      const { error: logError } = await supabase.from("activity_log").insert({
+        actor_name: "عضو بالفريق",
+        item_type: "معدة",
+        item_id: e.id,
+        action_type: !e.is_secured ? "تم الجلب" : "إلغاء الجلب"
+      });
+      if (logError) console.error("Activity log error:", logError);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["equipment"] }),
   });
