@@ -81,7 +81,7 @@ function MemberPage() {
         )
       );
       if (!newItem.is_completed) {
-        toast.success("تم إنجاز المهمة، بطل!");
+        toast.success("تم إنجاز المهمة");
       }
       return { previous };
     },
