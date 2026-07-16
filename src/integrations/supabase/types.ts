@@ -105,6 +105,7 @@ export type Database = {
           end_date: string | null
           id: string
           name: string
+          short_code: string
           start_date: string | null
           updated_at: string | null
         }
@@ -113,6 +114,7 @@ export type Database = {
           end_date?: string | null
           id?: string
           name: string
+          short_code: string
           start_date?: string | null
           updated_at?: string | null
         }
@@ -121,6 +123,7 @@ export type Database = {
           end_date?: string | null
           id?: string
           name?: string
+          short_code?: string
           start_date?: string | null
           updated_at?: string | null
         }

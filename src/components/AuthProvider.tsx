@@ -37,10 +37,6 @@ export function AuthProvider({ children, projectId }: { children: React.ReactNod
     const savedId = localStorage.getItem(`qrta_actor_id_${projectId}`);
     const savedName = localStorage.getItem(`qrta_actor_name_${projectId}`);
     
-  useEffect(() => {
-    const savedId = localStorage.getItem(`qrta_actor_id_${projectId}`);
-    const savedName = localStorage.getItem(`qrta_actor_name_${projectId}`);
-    
     if (savedId && savedName) {
       setActorId(savedId);
       setActorName(savedName);
