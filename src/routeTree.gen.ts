@@ -9,65 +9,101 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as EquipmentRouteImport } from './routes/equipment'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as MemberIdRouteImport } from './routes/member.$id'
+import { Route as PProjectIdRouteImport } from './routes/p.$projectId'
+import { Route as PProjectIdIndexRouteImport } from './routes/p.$projectId.index'
+import { Route as PProjectIdSettingsRouteImport } from './routes/p.$projectId.settings'
+import { Route as PProjectIdEquipmentRouteImport } from './routes/p.$projectId.equipment'
+import { Route as PProjectIdMemberIdRouteImport } from './routes/p.$projectId.member.$id'
 
-const EquipmentRoute = EquipmentRouteImport.update({
-  id: '/equipment',
-  path: '/equipment',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MemberIdRoute = MemberIdRouteImport.update({
+const PProjectIdRoute = PProjectIdRouteImport.update({
+  id: '/p/$projectId',
+  path: '/p/$projectId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PProjectIdIndexRoute = PProjectIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PProjectIdRoute,
+} as any)
+const PProjectIdSettingsRoute = PProjectIdSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => PProjectIdRoute,
+} as any)
+const PProjectIdEquipmentRoute = PProjectIdEquipmentRouteImport.update({
+  id: '/equipment',
+  path: '/equipment',
+  getParentRoute: () => PProjectIdRoute,
+} as any)
+const PProjectIdMemberIdRoute = PProjectIdMemberIdRouteImport.update({
   id: '/member/$id',
   path: '/member/$id',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => PProjectIdRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/equipment': typeof EquipmentRoute
-  '/member/$id': typeof MemberIdRoute
+  '/p/$projectId': typeof PProjectIdRouteWithChildren
+  '/p/$projectId/equipment': typeof PProjectIdEquipmentRoute
+  '/p/$projectId/settings': typeof PProjectIdSettingsRoute
+  '/p/$projectId/': typeof PProjectIdIndexRoute
+  '/p/$projectId/member/$id': typeof PProjectIdMemberIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/equipment': typeof EquipmentRoute
-  '/member/$id': typeof MemberIdRoute
+  '/p/$projectId/equipment': typeof PProjectIdEquipmentRoute
+  '/p/$projectId/settings': typeof PProjectIdSettingsRoute
+  '/p/$projectId': typeof PProjectIdIndexRoute
+  '/p/$projectId/member/$id': typeof PProjectIdMemberIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/equipment': typeof EquipmentRoute
-  '/member/$id': typeof MemberIdRoute
+  '/p/$projectId': typeof PProjectIdRouteWithChildren
+  '/p/$projectId/equipment': typeof PProjectIdEquipmentRoute
+  '/p/$projectId/settings': typeof PProjectIdSettingsRoute
+  '/p/$projectId/': typeof PProjectIdIndexRoute
+  '/p/$projectId/member/$id': typeof PProjectIdMemberIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/equipment' | '/member/$id'
+  fullPaths:
+    | '/'
+    | '/p/$projectId'
+    | '/p/$projectId/equipment'
+    | '/p/$projectId/settings'
+    | '/p/$projectId/'
+    | '/p/$projectId/member/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/equipment' | '/member/$id'
-  id: '__root__' | '/' | '/equipment' | '/member/$id'
+  to:
+    | '/'
+    | '/p/$projectId/equipment'
+    | '/p/$projectId/settings'
+    | '/p/$projectId'
+    | '/p/$projectId/member/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/p/$projectId'
+    | '/p/$projectId/equipment'
+    | '/p/$projectId/settings'
+    | '/p/$projectId/'
+    | '/p/$projectId/member/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  EquipmentRoute: typeof EquipmentRoute
-  MemberIdRoute: typeof MemberIdRoute
+  PProjectIdRoute: typeof PProjectIdRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/equipment': {
-      id: '/equipment'
-      path: '/equipment'
-      fullPath: '/equipment'
-      preLoaderRoute: typeof EquipmentRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -75,21 +111,76 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/member/$id': {
-      id: '/member/$id'
-      path: '/member/$id'
-      fullPath: '/member/$id'
-      preLoaderRoute: typeof MemberIdRouteImport
+    '/p/$projectId': {
+      id: '/p/$projectId'
+      path: '/p/$projectId'
+      fullPath: '/p/$projectId'
+      preLoaderRoute: typeof PProjectIdRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/p/$projectId/': {
+      id: '/p/$projectId/'
+      path: '/'
+      fullPath: '/p/$projectId/'
+      preLoaderRoute: typeof PProjectIdIndexRouteImport
+      parentRoute: typeof PProjectIdRoute
+    }
+    '/p/$projectId/settings': {
+      id: '/p/$projectId/settings'
+      path: '/settings'
+      fullPath: '/p/$projectId/settings'
+      preLoaderRoute: typeof PProjectIdSettingsRouteImport
+      parentRoute: typeof PProjectIdRoute
+    }
+    '/p/$projectId/equipment': {
+      id: '/p/$projectId/equipment'
+      path: '/equipment'
+      fullPath: '/p/$projectId/equipment'
+      preLoaderRoute: typeof PProjectIdEquipmentRouteImport
+      parentRoute: typeof PProjectIdRoute
+    }
+    '/p/$projectId/member/$id': {
+      id: '/p/$projectId/member/$id'
+      path: '/member/$id'
+      fullPath: '/p/$projectId/member/$id'
+      preLoaderRoute: typeof PProjectIdMemberIdRouteImport
+      parentRoute: typeof PProjectIdRoute
     }
   }
 }
 
+interface PProjectIdRouteChildren {
+  PProjectIdEquipmentRoute: typeof PProjectIdEquipmentRoute
+  PProjectIdSettingsRoute: typeof PProjectIdSettingsRoute
+  PProjectIdIndexRoute: typeof PProjectIdIndexRoute
+  PProjectIdMemberIdRoute: typeof PProjectIdMemberIdRoute
+}
+
+const PProjectIdRouteChildren: PProjectIdRouteChildren = {
+  PProjectIdEquipmentRoute: PProjectIdEquipmentRoute,
+  PProjectIdSettingsRoute: PProjectIdSettingsRoute,
+  PProjectIdIndexRoute: PProjectIdIndexRoute,
+  PProjectIdMemberIdRoute: PProjectIdMemberIdRoute,
+}
+
+const PProjectIdRouteWithChildren = PProjectIdRoute._addFileChildren(
+  PProjectIdRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  EquipmentRoute: EquipmentRoute,
-  MemberIdRoute: MemberIdRoute,
+  PProjectIdRoute: PProjectIdRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
