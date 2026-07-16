@@ -27,7 +27,9 @@ export function AuthProvider({ children, projectId }: { children: React.ReactNod
   const [actorName, setActorName] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [newName, setNewName] = useState("");
+  const [newRole, setNewRole] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
 
   useEffect(() => {
     const savedId = localStorage.getItem(`qrta_actor_id_${projectId}`);
@@ -49,7 +51,7 @@ export function AuthProvider({ children, projectId }: { children: React.ReactNod
     setOpen(false);
   };
 
-  const handleCreateFirstMember = async (e: React.FormEvent) => {
+  const handleCreateMember = async (e: React.FormEvent, defaultRole?: string) => {
     e.preventDefault();
     if (!newName.trim()) return;
     setIsSubmitting(true);
@@ -59,7 +61,7 @@ export function AuthProvider({ children, projectId }: { children: React.ReactNod
         .insert({
           project_id: projectId,
           name: newName,
-          role: "مدير المشروع"
+          role: defaultRole || newRole || "عضو فريق"
         })
         .select()
         .single();
@@ -95,7 +97,7 @@ export function AuthProvider({ children, projectId }: { children: React.ReactNod
           </DialogHeader>
           
           {team.length === 0 ? (
-            <form onSubmit={handleCreateFirstMember} className="mt-6 flex flex-col gap-3">
+            <form onSubmit={(e) => handleCreateMember(e, "مدير المشروع")} className="mt-6 flex flex-col gap-3">
               <input
                 autoFocus
                 value={newName}
@@ -112,18 +114,53 @@ export function AuthProvider({ children, projectId }: { children: React.ReactNod
               </button>
             </form>
           ) : (
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              {team.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => handleSetActor(m.id, m.name)}
-                  className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/5 p-4 transition-transform active:scale-95 hover:bg-white/10"
+            <>
+              <div className="mt-4 grid grid-cols-2 gap-3 max-h-[40vh] overflow-y-auto pr-1">
+                {team.map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => handleSetActor(m.id, m.name)}
+                    className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/5 p-4 transition-transform active:scale-95 hover:bg-white/10"
+                  >
+                    <div className="font-bold">{m.name}</div>
+                    <div className="text-[10px] text-muted-foreground text-center line-clamp-2">{m.role}</div>
+                  </button>
+                ))}
+              </div>
+
+              {!showAddForm ? (
+                <button 
+                  onClick={() => setShowAddForm(true)}
+                  className="mt-6 w-full rounded-xl border border-dashed border-white/20 p-3 text-sm text-muted-foreground hover:bg-white/5 transition"
                 >
-                  <div className="font-bold">{m.name}</div>
-                  <div className="text-[10px] text-muted-foreground text-center line-clamp-2">{m.role}</div>
+                  + لست في القائمة؟ أضف نفسك كعضو جديد
                 </button>
-              ))}
-            </div>
+              ) : (
+                <form onSubmit={(e) => handleCreateMember(e)} className="mt-6 flex flex-col gap-3 pt-4 border-t border-white/10">
+                  <h3 className="text-xs font-bold text-amber">إضافة عضو جديد</h3>
+                  <input
+                    autoFocus
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    placeholder="اسمك (مثال: سارة)"
+                    className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-2 outline-none text-sm"
+                  />
+                  <input
+                    value={newRole}
+                    onChange={(e) => setNewRole(e.target.value)}
+                    placeholder="المسمى الوظيفي (مثال: مصور)"
+                    className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-2 outline-none text-sm"
+                  />
+                  <button 
+                    type="submit"
+                    disabled={!newName.trim() || isSubmitting}
+                    className="w-full bg-amber-gradient text-black font-bold rounded-xl py-2 mt-1 disabled:opacity-50 text-sm"
+                  >
+                    إضافة ودخول
+                  </button>
+                </form>
+              )}
+            </>
           )}
         </DialogContent>
       </Dialog>
