@@ -5,6 +5,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { projectQuery, teamQuery } from "@/lib/queries";
 import { toast } from "sonner";
 import { ChevronRight, Save, Plus, Trash2, Copy, Share2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/p/$projectId/settings")({
   loader: ({ context, params }) => {
@@ -64,12 +75,16 @@ function SettingsPage() {
 
   const deleteMember = useMutation({
     mutationFn: async (id: string) => {
+      const { error: tasksError } = await supabase.from("tasks").delete().eq("team_member_id", id);
+      if (tasksError) throw tasksError;
+
       const { error } = await supabase.from("team_members").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["team_members", projectId] });
-      toast.success("تم حذف العضو");
+      qc.invalidateQueries({ queryKey: ["tasks", projectId] });
+      toast.success("تم حذف العضو ومهامه");
     },
   });
 
@@ -171,14 +186,32 @@ function SettingsPage() {
                   <div className="text-sm font-bold">{m.name}</div>
                   <div className="text-xs text-amber mt-0.5">{m.role}</div>
                 </div>
-                <button 
-                  onClick={() => {
-                    if (confirm(`هل أنت متأكد من حذف ${m.name}؟`)) deleteMember.mutate(m.id);
-                  }}
-                  className="text-muted-foreground hover:text-red-400 p-2 active:scale-95"
-                >
-                  <Trash2 size={16} />
-                </button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <button className="text-muted-foreground hover:text-red-500 p-2 active:scale-95 transition">
+                      <Trash2 size={16} />
+                    </button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent className="max-w-[90vw] sm:max-w-md rounded-2xl border-white/10 bg-background/95 backdrop-blur-xl p-6">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="text-right text-lg font-black text-amber">حذف العضو</AlertDialogTitle>
+                      <AlertDialogDescription className="text-right text-sm leading-relaxed text-muted-foreground">
+                        هل أنت متأكد من حذف <span className="font-bold text-white">{m.name}</span>؟ سيؤدي هذا الإجراء أيضاً إلى حذف كافة المهام المرتبطة به بشكل نهائي.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="flex items-center gap-2 mt-4 sm:justify-end">
+                      <AlertDialogCancel className="w-full sm:w-auto mt-0 border-white/10 bg-white/5 hover:bg-white/10 hover:text-white rounded-xl">
+                        إلغاء
+                      </AlertDialogCancel>
+                      <AlertDialogAction 
+                        className="w-full sm:w-auto bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white rounded-xl transition"
+                        onClick={() => deleteMember.mutate(m.id)}
+                      >
+                        نعم، احذف العضو
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </li>
             ))}
           </ul>

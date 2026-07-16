@@ -7,6 +7,17 @@ import { ProgressBar } from "@/components/ProgressRing";
 import { ChevronRight, Plus, Check, Trash2, Home, Edit2, Calendar, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/AuthProvider";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/p/$projectId/member/$id")({
   loader: ({ context, params }) => {
@@ -213,15 +224,35 @@ function MemberPage() {
             >
               <Edit2 size={15} />
             </button>
-            <button
-              onClick={() => {
-                if (confirm("حذف المهمة؟")) deleteTask.mutate(t.id);
-              }}
-              className="text-muted-foreground hover:text-white"
-              aria-label="حذف"
-            >
-              <Trash2 size={15} />
-            </button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <button
+                  className="text-muted-foreground hover:text-red-500"
+                  aria-label="حذف"
+                >
+                  <Trash2 size={15} />
+                </button>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="max-w-[90vw] sm:max-w-md rounded-2xl border-white/10 bg-background/95 backdrop-blur-xl p-6">
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="text-right text-lg font-black text-amber">حذف المهمة</AlertDialogTitle>
+                  <AlertDialogDescription className="text-right text-sm leading-relaxed text-muted-foreground">
+                    هل أنت متأكد من حذف هذه المهمة؟ لا يمكن التراجع عن هذا الإجراء.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="flex items-center gap-2 mt-4 sm:justify-end">
+                  <AlertDialogCancel className="w-full sm:w-auto mt-0 border-white/10 bg-white/5 hover:bg-white/10 hover:text-white rounded-xl">
+                    إلغاء
+                  </AlertDialogCancel>
+                  <AlertDialogAction 
+                    className="w-full sm:w-auto bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white rounded-xl transition"
+                    onClick={() => deleteTask.mutate(t.id)}
+                  >
+                    نعم، احذف
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
       )}
