@@ -87,7 +87,6 @@ function EquipmentPage() {
     },
     onSuccess: () => {
       setNewName("");
-      setIsAdding(false);
       qc.invalidateQueries({ queryKey: ["equipment", projectId] });
       toast.success("تمت إضافة المعدة");
     },
