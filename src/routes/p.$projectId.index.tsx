@@ -4,6 +4,7 @@ import { teamQuery, tasksQuery, equipmentQuery, projectQuery } from "@/lib/queri
 import { ProgressRing } from "@/components/ProgressRing";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { Camera, Mic, Video, ClipboardList, Package, ChevronLeft, Clock } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
 
 export const Route = createFileRoute("/p/$projectId/")({
   loader: ({ context, params }) => {
@@ -48,6 +49,7 @@ function Home() {
   const { data: team } = useSuspenseQuery(teamQuery(projectId));
   const { data: tasks } = useSuspenseQuery(tasksQuery(projectId));
   const { data: equipment } = useSuspenseQuery(equipmentQuery(projectId));
+  const { openIdentityModal } = useAuth();
 
   const overallTasks = tasks.length
     ? (tasks.filter((t) => t.is_completed).length / tasks.length) * 100
@@ -133,6 +135,15 @@ function Home() {
             </Link>
           );
         })}
+      </div>
+
+      <div className="mb-6 flex justify-center">
+        <button 
+          onClick={openIdentityModal}
+          className="text-xs text-amber-500 border border-amber-500/30 rounded-xl px-5 py-2 hover:bg-amber-500/10 transition-colors"
+        >
+          + لست في القائمة؟ أضف نفسك
+        </button>
       </div>
       
       <ActivityFeed projectId={projectId} />
