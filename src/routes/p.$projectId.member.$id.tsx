@@ -143,19 +143,19 @@ function MemberPage() {
           className="flex w-full flex-col gap-3"
           onSubmit={(e) => {
             e.preventDefault();
-            if (editingTask.title.trim()) {
+            if (editingTask!.title.trim()) {
               updateTaskDetails.mutate({
                 id: t.id,
-                title: editingTask.title,
-                due_date: editingTask.due_date
+                title: editingTask!.title,
+                due_date: editingTask!.due_date
               });
             }
           }}
         >
           <input
             autoFocus
-            value={editingTask.title}
-            onChange={(e) => setEditingTask({ ...editingTask, title: e.target.value })}
+            value={editingTask!.title}
+            onChange={(e) => setEditingTask({ ...editingTask!, title: e.target.value })}
             className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none"
             placeholder="عنوان المهمة"
           />
@@ -164,12 +164,12 @@ function MemberPage() {
               <Calendar size={14} className="text-muted-foreground" />
               <input
                 type="date"
-                value={editingTask.due_date}
-                onChange={(e) => setEditingTask({ ...editingTask, due_date: e.target.value })}
+                value={editingTask!.due_date}
+                onChange={(e) => setEditingTask({ ...editingTask!, due_date: e.target.value })}
                 className="flex-1 bg-transparent text-sm outline-none [color-scheme:dark]"
               />
             </div>
-            <button type="submit" className="rounded-lg bg-amber-gradient px-4 py-2 text-sm font-bold text-black disabled:opacity-50" disabled={!editingTask.title.trim() || updateTaskDetails.isPending}>
+            <button type="submit" className="rounded-lg bg-amber-gradient px-4 py-2 text-sm font-bold text-black disabled:opacity-50" disabled={!editingTask!.title.trim() || updateTaskDetails.isPending}>
               حفظ
             </button>
             <button type="button" onClick={() => setEditingTask(null)} className="rounded-lg border border-white/10 bg-white/5 p-2 text-muted-foreground">
