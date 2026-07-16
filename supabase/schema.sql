@@ -1,7 +1,17 @@
 -- Create Tables
 
+CREATE TABLE projects (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  name text NOT NULL,
+  start_date date,
+  end_date date,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now()
+);
+
 CREATE TABLE team_members (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  project_id uuid REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
   name text NOT NULL,
   role text NOT NULL,
   avatar_url text,
@@ -11,6 +21,7 @@ CREATE TABLE team_members (
 
 CREATE TABLE tasks (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  project_id uuid REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
   team_member_id uuid REFERENCES team_members(id) ON DELETE CASCADE,
   title text NOT NULL,
   details text,
@@ -22,6 +33,7 @@ CREATE TABLE tasks (
 
 CREATE TABLE equipment (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  project_id uuid REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
   name text NOT NULL,
   category text NOT NULL,
   quantity integer DEFAULT 1,
@@ -34,6 +46,7 @@ CREATE TABLE equipment (
 
 CREATE TABLE activity_log (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  project_id uuid REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
   actor_name text,
   item_type text NOT NULL,
   item_id uuid,

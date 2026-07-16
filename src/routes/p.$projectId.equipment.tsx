@@ -6,10 +6,11 @@ import { equipmentQuery } from "@/lib/queries";
 import { ProgressBar } from "@/components/ProgressRing";
 import { ChevronRight, Plus, Check, Trash2, Home, Search, Minus } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/components/AuthProvider";
 
-export const Route = createFileRoute("/equipment")({
-  loader: ({ context }) => {
-    context.queryClient.ensureQueryData(equipmentQuery);
+export const Route = createFileRoute("/p/$projectId/equipment")({
+  loader: ({ context, params }) => {
+    context.queryClient.ensureQueryData(equipmentQuery(params.projectId));
   },
   component: EquipmentPage,
   errorComponent: ({ error }) => (
@@ -19,9 +20,11 @@ export const Route = createFileRoute("/equipment")({
 });
 
 function EquipmentPage() {
+  const { projectId } = Route.useParams();
   const router = useRouter();
   const qc = useQueryClient();
-  const { data: equipment } = useSuspenseQuery(equipmentQuery);
+  const { data: equipment } = useSuspenseQuery(equipmentQuery(projectId));
+  const { actorName } = useAuth();
   const [q, setQ] = useState("");
   const [activeCat, setActiveCat] = useState<string>("");
   const [newName, setNewName] = useState("");
@@ -36,32 +39,33 @@ function EquipmentPage() {
       if (error) throw error;
 
       const { error: logError } = await supabase.from("activity_log").insert({
-        actor_name: "عضو بالفريق",
+        project_id: projectId,
+        actor_name: actorName || "عضو بالفريق",
         item_type: "معدة",
         item_id: e.id,
         action_type: !e.is_secured ? "تم الجلب" : "إلغاء الجلب"
       });
       if (logError) console.error("Activity log error:", logError);
     },
-    onMutate: async (newItem) => {
-      await qc.cancelQueries({ queryKey: ["equipment"] });
-      const previous = qc.getQueryData(["equipment"]);
-      qc.setQueryData(["equipment"], (old: any) =>
-        old?.map((item: any) =>
-          item.id === newItem.id ? { ...item, is_secured: !newItem.is_secured } : item
+    onMutate: async (newGear) => {
+      await qc.cancelQueries({ queryKey: ["equipment", projectId] });
+      const previous = qc.getQueryData(["equipment", projectId]);
+      qc.setQueryData(["equipment", projectId], (old: any) =>
+        old?.map((e: any) =>
+          e.id === newGear.id ? { ...e, is_secured: !newGear.is_secured } : e
         )
       );
-      if (!newItem.is_secured) {
+      if (!newGear.is_secured) {
         toast.success("تم جلب المعدة بنجاح!");
       }
       return { previous };
     },
-    onError: (err, newItem, context) => {
-      qc.setQueryData(["equipment"], context?.previous);
+    onError: (err, newGear, context) => {
+      qc.setQueryData(["equipment", projectId], context?.previous);
       toast.error("حدث خطأ في الحفظ");
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: ["equipment"] });
+      qc.invalidateQueries({ queryKey: ["equipment", projectId] });
     },
   });
 
@@ -73,27 +77,31 @@ function EquipmentPage() {
         .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["equipment"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["equipment", projectId] }),
   });
 
-  const addItem = useMutation({
-    mutationFn: async (payload: { name: string; category: string }) => {
-      const { error } = await supabase.from("equipment").insert(payload);
+  const addEquipment = useMutation({
+    mutationFn: async ({ name, category }: { name: string; category: string }) => {
+      const { error } = await supabase.from("equipment").insert({ project_id: projectId, name, category });
       if (error) throw error;
     },
     onSuccess: () => {
       setNewName("");
-      qc.invalidateQueries({ queryKey: ["equipment"] });
-      toast.success("تمت إضافة القطعة");
+      setIsAdding(false);
+      qc.invalidateQueries({ queryKey: ["equipment", projectId] });
+      toast.success("تمت إضافة المعدة");
     },
   });
 
-  const del = useMutation({
+  const deleteEquipment = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("equipment").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["equipment"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["equipment", projectId] });
+      toast.success("تم الحذف");
+    },
   });
 
   const categories = useMemo(
@@ -125,7 +133,7 @@ function EquipmentPage() {
           <ChevronRight size={14} />
           رجوع
         </button>
-        <Link to="/" className="rounded-full border border-white/10 bg-white/5 p-2 text-muted-foreground active:scale-95">
+        <Link to="/p/$projectId" params={{ projectId }} className="rounded-full border border-white/10 bg-white/5 p-2 text-muted-foreground active:scale-95">
           <Home size={14} />
         </Link>
       </div>
@@ -235,7 +243,7 @@ function EquipmentPage() {
                   </div>
                   <button
                     onClick={() => {
-                      if (confirm("حذف القطعة؟")) del.mutate(e.id);
+                      if (confirm("حذف القطعة؟")) deleteEquipment.mutate(e.id);
                     }}
                     className="text-muted-foreground opacity-0 transition group-hover:opacity-100 active:opacity-100"
                     aria-label="حذف"
@@ -258,7 +266,7 @@ function EquipmentPage() {
         onSubmit={(e) => {
           e.preventDefault();
           const n = newName.trim();
-          if (n) addItem.mutate({ name: n, category: newCat });
+          if (n) addEquipment.mutate({ name: n, category: newCat });
         }}
         className="fixed inset-x-0 bottom-0 z-10 mx-auto max-w-md p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
       >
@@ -272,7 +280,7 @@ function EquipmentPage() {
             />
             <button
               type="submit"
-              disabled={!newName.trim() || addItem.isPending}
+              disabled={!newName.trim() || addEquipment.isPending}
               className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-amber-gradient disabled:opacity-40"
             >
               <Plus size={18} strokeWidth={2.5} />
