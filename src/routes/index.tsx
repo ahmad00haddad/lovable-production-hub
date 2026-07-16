@@ -15,18 +15,50 @@ function LandingPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
 
-  const handleJoin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!projectId.trim()) return;
-    
-    // UUID validation (basic)
-    if (projectId.length < 32) {
-      toast.error("كود المشروع غير صالح");
-      return;
+  const generateShortCode = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Removed similar looking chars (I,1,O,0)
+    let result = "";
+    for (let i = 0; i < 6; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
+    return result;
+  };
+
+  const handleJoin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const code = projectId.trim();
+    if (!code) return;
     
-    navigate({ to: "/p/$projectId", params: { projectId: projectId.trim() } });
+    setIsJoining(true);
+    try {
+      // Check if it's a UUID (length 36 usually)
+      if (code.length >= 32) {
+        navigate({ to: "/p/$projectId", params: { projectId: code } });
+        return;
+      }
+
+      // Check if it's a short code (around 6 chars)
+      const { data, error } = await supabase
+        .from("projects")
+        .select("id")
+        .eq("short_code", code.toUpperCase())
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!data) {
+        toast.error("الكود غير صحيح أو المشروع غير موجود");
+        return;
+      }
+
+      navigate({ to: "/p/$projectId", params: { projectId: data.id } });
+    } catch (err: any) {
+      toast.error("حدث خطأ أثناء الانضمام");
+      console.error(err);
+    } finally {
+      setIsJoining(false);
+    }
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -34,27 +66,45 @@ function LandingPage() {
     if (!projectName.trim()) return;
 
     setIsCreating(true);
-    try {
-      const { data, error } = await supabase
-        .from("projects")
-        .insert({
-          name: projectName,
-          start_date: startDate || null,
-          end_date: endDate || null
-        })
-        .select()
-        .single();
+    let attempts = 0;
+    const maxAttempts = 3;
 
-      if (error) throw error;
-      
-      toast.success("تم إنشاء المشروع بنجاح!");
-      navigate({ to: "/p/$projectId/settings", params: { projectId: data.id } });
-    } catch (err: any) {
-      toast.error("حدث خطأ أثناء الإنشاء");
-      console.error(err);
-    } finally {
-      setIsCreating(false);
+    while (attempts < maxAttempts) {
+      try {
+        const shortCode = generateShortCode();
+        const { data, error } = await supabase
+          .from("projects")
+          .insert({
+            name: projectName,
+            short_code: shortCode,
+            start_date: startDate || null,
+            end_date: endDate || null
+          })
+          .select()
+          .single();
+
+        if (error) {
+          if (error.code === '23505') { // Unique violation
+            attempts++;
+            continue;
+          }
+          throw error;
+        }
+        
+        toast.success("تم إنشاء المشروع بنجاح!");
+        navigate({ to: "/p/$projectId/settings", params: { projectId: data.id } });
+        return;
+      } catch (err: any) {
+        toast.error("حدث خطأ أثناء الإنشاء");
+        console.error(err);
+        break;
+      }
     }
+    
+    if (attempts >= maxAttempts) {
+      toast.error("تعذر توليد كود فريد، يرجى المحاولة مجدداً.");
+    }
+    setIsCreating(false);
   };
 
   return (
@@ -71,10 +121,10 @@ function LandingPage() {
             <input
               value={projectId}
               onChange={(e) => setProjectId(e.target.value)}
-              placeholder="ألصق كود المشروع (ID) هنا..."
+              placeholder="أدخل الكود القصير (أو الكود الطويل)..."
               className="flex-1 rounded-xl bg-white/5 border border-white/10 px-4 py-2 outline-none text-sm font-mono"
             />
-            <button type="submit" className="bg-white/10 rounded-xl p-2 px-4 hover:bg-white/20 transition flex items-center gap-2">
+            <button disabled={isJoining} type="submit" className="bg-white/10 rounded-xl p-2 px-4 hover:bg-white/20 transition flex items-center gap-2 disabled:opacity-50">
               دخول <ArrowLeft size={16} />
             </button>
           </form>

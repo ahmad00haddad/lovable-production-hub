@@ -2,6 +2,7 @@
 
 CREATE TABLE projects (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  short_code text UNIQUE NOT NULL,
   name text NOT NULL,
   start_date date,
   end_date date,

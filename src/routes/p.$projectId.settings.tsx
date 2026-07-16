@@ -74,8 +74,8 @@ function SettingsPage() {
   });
 
   const copyLink = () => {
-    const url = `${window.location.origin}/`;
-    navigator.clipboard.writeText(`انضم למشروع الإنتاج الخاص بنا!\nالرابط: ${url}\nكود المشروع: ${projectId}`);
+    const url = `${window.location.origin}/p/${projectId}`;
+    navigator.clipboard.writeText(`انضم لمشروع الإنتاج الخاص بنا!\nالرابط المباشر: ${url}\n\nأو أدخل الكود القصير يدوياً: ${project.short_code}`);
     toast.success("تم نسخ رسالة الدعوة");
   };
 
@@ -99,11 +99,11 @@ function SettingsPage() {
             دعوة الفريق
           </h2>
           <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
-            انسخ كود المشروع أو رسالة الدعوة وأرسلها لفريقك ليدخلوا إلى هذه المساحة المشتركة.
+            انسخ الكود القصير أو الرابط المباشر وأرسله لفريقك ليدخلوا إلى هذه المساحة المشتركة.
           </p>
           <div className="flex gap-2">
-            <div className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white flex items-center truncate">
-              {projectId}
+            <div className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xl font-black tracking-widest text-white flex justify-center items-center">
+              {project.short_code}
             </div>
             <button 
               onClick={copyLink}
