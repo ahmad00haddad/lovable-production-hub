@@ -1,10 +1,10 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useSuspenseQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { teamQuery, tasksQuery } from "@/lib/queries";
 import { ProgressBar } from "@/components/ProgressRing";
-import { ChevronRight, Plus, Check, Trash2, Home, Edit2, Calendar, X } from "lucide-react";
+import { ChevronRight, Plus, Check, Trash2, Home, Edit2, Calendar, X, ClipboardX } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/AuthProvider";
 import {
@@ -24,6 +24,11 @@ export const Route = createFileRoute("/p/$projectId/member/$id")({
     context.queryClient.ensureQueryData(teamQuery(params.projectId));
     context.queryClient.ensureQueryData(tasksQuery(params.projectId, params.id));
   },
+  pendingComponent: () => (
+    <div className="flex h-64 items-center justify-center">
+      <div className="h-6 w-6 animate-spin rounded-full border-4 border-amber-500 border-t-transparent" />
+    </div>
+  ),
   component: MemberPage,
   errorComponent: ({ error }) => (
     <div className="p-6 text-center text-sm text-muted-foreground">تعذر تحميل الصفحة: {error.message}</div>
@@ -45,6 +50,7 @@ function MemberPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [newTitle, setNewTitle] = useState("");
   const [editingTask, setEditingTask] = useState<{ id: string; title: string; due_date: string } | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const updateTaskDetails = useMutation({
     mutationFn: async (t: { id: string; title: string; due_date: string | null }) => {
@@ -336,8 +342,14 @@ function MemberPage() {
         )}
 
         {filtered.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-white/10 py-8 text-center text-xs text-muted-foreground">
-            لا توجد مهام هنا
+          <div className="rounded-2xl border border-dashed border-white/10 py-12 flex flex-col items-center justify-center text-center">
+            <div className="bg-white/5 p-4 rounded-full mb-4">
+              <ClipboardX size={32} className="text-white/20" />
+            </div>
+            <h3 className="text-base font-bold text-white mb-2">لا توجد مهام حالياً</h3>
+            <p className="text-xs text-muted-foreground max-w-[200px]">
+              استخدم الشريط بالأسفل لإضافة مهام جديدة ومتابعة الإنجاز
+            </p>
           </div>
         )}
       </div>
@@ -346,12 +358,16 @@ function MemberPage() {
         onSubmit={(e) => {
           e.preventDefault();
           const t = newTitle.trim();
-          if (t) addTask.mutate(t);
+          if (t) {
+            addTask.mutate(t);
+            inputRef.current?.blur();
+          }
         }}
-        className="fixed inset-x-0 bottom-0 z-10 mx-auto max-w-md p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+        className="fixed inset-x-0 bottom-0 z-10 mx-auto max-w-md p-4 pb-[max(1rem,env(safe-area-inset-bottom))] pointer-events-none"
       >
-        <div className="glass-card flex items-center gap-2 rounded-2xl p-2">
+        <div className="glass-card flex items-center gap-2 rounded-2xl p-2 pointer-events-auto">
           <input
+            ref={inputRef}
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
             placeholder="أضف مهمة جديدة…"

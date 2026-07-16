@@ -22,6 +22,11 @@ export const Route = createFileRoute("/p/$projectId/settings")({
     context.queryClient.ensureQueryData(projectQuery(params.projectId));
     context.queryClient.ensureQueryData(teamQuery(params.projectId));
   },
+  pendingComponent: () => (
+    <div className="flex h-64 items-center justify-center">
+      <div className="h-6 w-6 animate-spin rounded-full border-4 border-amber-500 border-t-transparent" />
+    </div>
+  ),
   component: SettingsPage,
 });
 

@@ -1,10 +1,10 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useSuspenseQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { equipmentQuery } from "@/lib/queries";
 import { ProgressBar } from "@/components/ProgressRing";
-import { ChevronRight, Plus, Check, Trash2, Home, Search, Minus } from "lucide-react";
+import { ChevronRight, Plus, Check, Trash2, Home, Search, Minus, PackageOpen } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/AuthProvider";
 import {
@@ -23,6 +23,11 @@ export const Route = createFileRoute("/p/$projectId/equipment")({
   loader: ({ context, params }) => {
     context.queryClient.ensureQueryData(equipmentQuery(params.projectId));
   },
+  pendingComponent: () => (
+    <div className="flex h-64 items-center justify-center">
+      <div className="h-6 w-6 animate-spin rounded-full border-4 border-amber-500 border-t-transparent" />
+    </div>
+  ),
   component: EquipmentPage,
   errorComponent: ({ error }) => (
     <div className="p-6 text-center text-sm text-muted-foreground">تعذر تحميل الصفحة: {error.message}</div>
@@ -40,6 +45,7 @@ function EquipmentPage() {
   const [activeCat, setActiveCat] = useState<string>("");
   const [newName, setNewName] = useState("");
   const [newCat, setNewCat] = useState("الجريبت والإكسسوارات");
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const toggle = useMutation({
     mutationFn: async (e: { id: string; is_secured: boolean }) => {
@@ -285,9 +291,20 @@ function EquipmentPage() {
             </ul>
           </section>
         ))}
-        {filtered.length === 0 && (
+        {equipment.length > 0 && filtered.length === 0 && (
           <div className="rounded-2xl border border-dashed border-white/10 py-8 text-center text-xs text-muted-foreground">
-            لا توجد نتائج
+            لا توجد نتائج تطابق بحثك
+          </div>
+        )}
+        {equipment.length === 0 && (
+          <div className="rounded-2xl border border-dashed border-white/10 py-12 flex flex-col items-center justify-center text-center mt-4">
+            <div className="bg-white/5 p-4 rounded-full mb-4">
+              <PackageOpen size={32} className="text-white/20" />
+            </div>
+            <h3 className="text-base font-bold text-white mb-2">لا توجد معدات حالياً</h3>
+            <p className="text-xs text-muted-foreground max-w-[200px]">
+              استخدم النموذج بالأسفل لإضافة القطع المطلوبة للإنتاج
+            </p>
           </div>
         )}
       </div>
@@ -296,13 +313,17 @@ function EquipmentPage() {
         onSubmit={(e) => {
           e.preventDefault();
           const n = newName.trim();
-          if (n) addEquipment.mutate({ name: n, category: newCat });
+          if (n) {
+            addEquipment.mutate({ name: n, category: newCat });
+            inputRef.current?.blur();
+          }
         }}
         className="fixed inset-x-0 bottom-0 z-10 mx-auto max-w-md p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
       >
         <div className="glass-card space-y-2 rounded-2xl p-2.5">
           <div className="flex items-center gap-2">
             <input
+              ref={inputRef}
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="أضف قطعة معدات…"

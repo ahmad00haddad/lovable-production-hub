@@ -22,7 +22,17 @@ export function ActivityFeed({ projectId }: { projectId: string }) {
     };
   }, [qc]);
 
-  if (isLoading || !logs?.length) return null;
+  if (isLoading) return null;
+
+  if (!logs?.length) {
+    return (
+      <section className="glass-card mb-6 rounded-2xl p-5 border border-dashed border-white/10 flex flex-col items-center justify-center py-8 text-center">
+        <History size={32} className="text-white/10 mb-3" />
+        <h3 className="text-sm font-bold text-white mb-1">لا توجد نشاطات بعد</h3>
+        <p className="text-xs text-muted-foreground">سجل نشاطات الفريق سيظهر هنا تلقائياً عند البدء بالعمل</p>
+      </section>
+    );
+  }
 
   return (
     <section className="glass-card mb-6 rounded-2xl p-5">

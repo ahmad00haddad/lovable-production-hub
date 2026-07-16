@@ -1,9 +1,10 @@
-import { createFileRoute, Link, useParams } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { createFileRoute, Link, useParams, useRouter } from "@tanstack/react-router";
+import { useSuspenseQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { teamQuery, tasksQuery, equipmentQuery, projectQuery } from "@/lib/queries";
 import { ProgressRing } from "@/components/ProgressRing";
 import { ActivityFeed } from "@/components/ActivityFeed";
-import { Camera, Mic, Video, ClipboardList, Package, ChevronLeft, Clock } from "lucide-react";
+import { Camera, Mic, Video, ClipboardList, Package, ChevronLeft, Clock, Users } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 
 export const Route = createFileRoute("/p/$projectId/")({
@@ -13,6 +14,11 @@ export const Route = createFileRoute("/p/$projectId/")({
     context.queryClient.ensureQueryData(tasksQuery(params.projectId));
     context.queryClient.ensureQueryData(equipmentQuery(params.projectId));
   },
+  pendingComponent: () => (
+    <div className="flex h-64 items-center justify-center">
+      <div className="h-6 w-6 animate-spin rounded-full border-4 border-amber-500 border-t-transparent" />
+    </div>
+  ),
   component: Home,
 });
 
@@ -45,6 +51,8 @@ function Countdown({ targetDateString }: { targetDateString?: string | null }) {
 
 function Home() {
   const { projectId } = Route.useParams();
+  const router = useRouter();
+  const qc = useQueryClient();
   const { data: project } = useSuspenseQuery(projectQuery(projectId));
   const { data: team } = useSuspenseQuery(teamQuery(projectId));
   const { data: tasks } = useSuspenseQuery(tasksQuery(projectId));
@@ -58,6 +66,25 @@ function Home() {
     ? (equipment.filter((e) => e.is_secured).length / equipment.length) * 100
     : 0;
   const overall = (overallTasks + overallGear) / 2;
+
+  const createGeneralMember = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.from("team_members").insert({
+        project_id: projectId,
+        name: "المهام العامة",
+        role: "عامة"
+      }).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["team_members", projectId] });
+      router.navigate({ to: `/p/${projectId}/member/${data.id}` });
+    }
+  });
+
+  const generalMember = team.find(m => m.name === "المهام العامة" || m.role === "عامة" || m.role === "مشترك");
+  const regularTeam = team.filter(m => m.id !== generalMember?.id);
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col px-5 pb-24 pt-10">
@@ -105,9 +132,50 @@ function Home() {
         </div>
       </section>
 
-      <h2 className="mb-3 text-sm font-bold text-muted-foreground">اختر اسمك للبدء</h2>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-sm font-bold text-muted-foreground">فريق العمل والمهام</h2>
+        {!generalMember && (
+          <button
+            onClick={() => createGeneralMember.mutate()}
+            disabled={createGeneralMember.isPending}
+            className="text-[10px] bg-white/5 border border-white/10 px-2 py-1 rounded hover:bg-white/10 transition flex items-center gap-1"
+          >
+            <Users size={12} /> إضافة مهام عامة
+          </button>
+        )}
+      </div>
+
       <div className="mb-6 grid grid-cols-2 gap-3">
-        {team.map((m) => {
+        {generalMember && (() => {
+          const m = generalMember;
+          const memberTasks = tasks.filter((t) => t.team_member_id === m.id);
+          const done = memberTasks.filter((t) => t.is_completed).length;
+          const pct = memberTasks.length ? (done / memberTasks.length) * 100 : 0;
+          return (
+            <Link
+              key={m.id}
+              to="/p/$projectId/member/$id"
+              params={{ projectId, id: m.id }}
+              className="col-span-2 glass-card group relative overflow-hidden rounded-2xl p-4 transition-transform active:scale-[0.97] border-amber-500/20"
+            >
+              <div className="mb-3 flex items-center justify-between">
+                <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500">
+                  <ClipboardList size={18} />
+                </div>
+                <ProgressRing value={pct} size={40} />
+              </div>
+              <div className="text-base font-bold text-amber-500">{m.name}</div>
+              <div className="mt-0.5 line-clamp-2 min-h-[1.5rem] text-[11px] leading-snug text-muted-foreground">
+                مهام مشتركة لا تخص شخصاً محدداً
+              </div>
+              <div className="mt-2 text-[10px] tabular-nums text-amber">
+                {done}/{memberTasks.length} مهمة
+              </div>
+            </Link>
+          );
+        })()}
+
+        {regularTeam.map((m) => {
           const memberTasks = tasks.filter((t) => t.team_member_id === m.id);
           const done = memberTasks.filter((t) => t.is_completed).length;
           const pct = memberTasks.length ? (done / memberTasks.length) * 100 : 0;
@@ -120,7 +188,7 @@ function Home() {
               className="glass-card group relative overflow-hidden rounded-2xl p-4 transition-transform active:scale-[0.97]"
             >
               <div className="mb-3 flex items-center justify-between">
-                <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-amber-gradient">
+                <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-amber-gradient text-black">
                   <Icon size={18} />
                 </div>
                 <ProgressRing value={pct} size={40} />
