@@ -8,12 +8,14 @@ type AuthContextType = {
   actorId: string | null;
   actorName: string | null;
   setActor: (id: string, name: string) => void;
+  openIdentityModal: () => void;
 };
 
 const AuthContext = createContext<AuthContextType>({
   actorId: null,
   actorName: null,
   setActor: () => {},
+  openIdentityModal: () => {},
 });
 
 export function useAuth() {
@@ -35,13 +37,15 @@ export function AuthProvider({ children, projectId }: { children: React.ReactNod
     const savedId = localStorage.getItem(`qrta_actor_id_${projectId}`);
     const savedName = localStorage.getItem(`qrta_actor_name_${projectId}`);
     
+  useEffect(() => {
+    const savedId = localStorage.getItem(`qrta_actor_id_${projectId}`);
+    const savedName = localStorage.getItem(`qrta_actor_name_${projectId}`);
+    
     if (savedId && savedName) {
       setActorId(savedId);
       setActorName(savedName);
-    } else {
-      setOpen(true);
     }
-  }, []);
+  }, [projectId]);
 
   const handleSetActor = (id: string, name: string) => {
     localStorage.setItem(`qrta_actor_id_${projectId}`, id);
@@ -78,15 +82,12 @@ export function AuthProvider({ children, projectId }: { children: React.ReactNod
   };
 
   return (
-    <AuthContext.Provider value={{ actorId, actorName, setActor: handleSetActor }}>
+    <AuthContext.Provider value={{ actorId, actorName, setActor: handleSetActor, openIdentityModal: () => setOpen(true) }}>
       {children}
       <Dialog open={open} onOpenChange={(val) => {
-        // Prevent closing by clicking outside if no user selected
-        if (!actorId) return;
         setOpen(val);
       }}>
-        {/* Added standard styling directly instead of relying solely on hideClose because hideClose doesn't exist on standard shadcn DialogContent by default */}
-        <DialogContent className="max-w-[90vw] w-full sm:max-w-md rounded-2xl p-6 bg-background/95 backdrop-blur-xl border-white/10 [&>button]:hidden">
+        <DialogContent className="max-w-[90vw] w-full sm:max-w-md rounded-2xl p-6 bg-background/95 backdrop-blur-xl border-white/10">
           <DialogHeader>
             <DialogTitle className="text-center text-2xl font-black text-amber">من أنت؟</DialogTitle>
             <DialogDescription className="text-center mt-2">
