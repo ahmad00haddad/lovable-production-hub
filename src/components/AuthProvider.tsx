@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import { teamQuery } from "@/lib/queries";
+import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 type AuthContextType = {
@@ -21,9 +22,12 @@ export function useAuth() {
 
 export function AuthProvider({ children, projectId }: { children: React.ReactNode; projectId: string }) {
   const { data: team } = useSuspenseQuery(teamQuery(projectId));
+  const qc = useQueryClient();
   const [actorId, setActorId] = useState<string | null>(null);
   const [actorName, setActorName] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const savedId = localStorage.getItem(`qrta_actor_id_${projectId}`);
@@ -45,6 +49,32 @@ export function AuthProvider({ children, projectId }: { children: React.ReactNod
     setOpen(false);
   };
 
+  const handleCreateFirstMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newName.trim()) return;
+    setIsSubmitting(true);
+    try {
+      const { data, error } = await supabase
+        .from("team_members")
+        .insert({
+          project_id: projectId,
+          name: newName,
+          role: "مدير المشروع"
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      qc.invalidateQueries({ queryKey: ["team_members", projectId] });
+      handleSetActor(data.id, data.name);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <AuthContext.Provider value={{ actorId, actorName, setActor: handleSetActor }}>
       {children}
@@ -58,21 +88,43 @@ export function AuthProvider({ children, projectId }: { children: React.ReactNod
           <DialogHeader>
             <DialogTitle className="text-center text-2xl font-black text-amber">من أنت؟</DialogTitle>
             <DialogDescription className="text-center mt-2">
-              يرجى اختيار هويتك من طاقم العمل لتسجيل تحركاتك في النظام.
+              {team.length === 0 
+                ? "يبدو أن هذا المشروع جديد! أدخل اسمك كمدير للمشروع للبدء." 
+                : "يرجى اختيار هويتك من طاقم العمل لتسجيل تحركاتك في النظام."}
             </DialogDescription>
           </DialogHeader>
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            {team.map((m) => (
-              <button
-                key={m.id}
-                onClick={() => handleSetActor(m.id, m.name)}
-                className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/5 p-4 transition-transform active:scale-95 hover:bg-white/10"
+          
+          {team.length === 0 ? (
+            <form onSubmit={handleCreateFirstMember} className="mt-6 flex flex-col gap-3">
+              <input
+                autoFocus
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="اسمك (مثال: أحمد)"
+                className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 outline-none text-sm text-center"
+              />
+              <button 
+                type="submit"
+                disabled={!newName.trim() || isSubmitting}
+                className="w-full bg-amber text-black font-bold rounded-xl py-3 mt-2 disabled:opacity-50"
               >
-                <div className="font-bold">{m.name}</div>
-                <div className="text-[10px] text-muted-foreground text-center line-clamp-2">{m.role}</div>
+                الدخول كمدير مشروع
               </button>
-            ))}
-          </div>
+            </form>
+          ) : (
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              {team.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => handleSetActor(m.id, m.name)}
+                  className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/5 p-4 transition-transform active:scale-95 hover:bg-white/10"
+                >
+                  <div className="font-bold">{m.name}</div>
+                  <div className="text-[10px] text-muted-foreground text-center line-clamp-2">{m.role}</div>
+                </button>
+              ))}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </AuthContext.Provider>
