@@ -22,6 +22,7 @@ export type Database = {
           id: string
           item_id: string | null
           item_type: string
+          project_id: string
         }
         Insert: {
           action_type: string
@@ -30,6 +31,7 @@ export type Database = {
           id?: string
           item_id?: string | null
           item_type: string
+          project_id: string
         }
         Update: {
           action_type?: string
@@ -38,8 +40,17 @@ export type Database = {
           id?: string
           item_id?: string | null
           item_type?: string
+          project_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "activity_log_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       equipment: {
         Row: {
@@ -49,6 +60,7 @@ export type Database = {
           is_secured: boolean
           name: string
           notes: string | null
+          project_id: string
           quantity: number
           sort_order: number
           updated_at: string
@@ -60,6 +72,7 @@ export type Database = {
           is_secured?: boolean
           name: string
           notes?: string | null
+          project_id: string
           quantity?: number
           sort_order?: number
           updated_at?: string
@@ -71,9 +84,45 @@ export type Database = {
           is_secured?: boolean
           name?: string
           notes?: string | null
+          project_id?: string
           quantity?: number
           sort_order?: number
           updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          created_at: string | null
+          end_date: string | null
+          id: string
+          name: string
+          start_date: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          end_date?: string | null
+          id?: string
+          name: string
+          start_date?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          end_date?: string | null
+          id?: string
+          name?: string
+          start_date?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -84,6 +133,7 @@ export type Database = {
           due_date: string | null
           id: string
           is_completed: boolean
+          project_id: string
           team_member_id: string
           title: string
           updated_at: string
@@ -94,6 +144,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           is_completed?: boolean
+          project_id: string
           team_member_id: string
           title: string
           updated_at?: string
@@ -104,11 +155,19 @@ export type Database = {
           due_date?: string | null
           id?: string
           is_completed?: boolean
+          project_id?: string
           team_member_id?: string
           title?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tasks_team_member_id_fkey"
             columns: ["team_member_id"]
@@ -124,6 +183,7 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          project_id: string
           role: string
           sort_order: number
         }
@@ -132,6 +192,7 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          project_id: string
           role: string
           sort_order?: number
         }
@@ -140,10 +201,19 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          project_id?: string
           role?: string
           sort_order?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "team_members_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
