@@ -223,7 +223,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      project_exists: { Args: { _project_id: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
