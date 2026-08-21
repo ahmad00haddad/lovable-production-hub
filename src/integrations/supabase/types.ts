@@ -52,6 +52,65 @@ export type Database = {
           },
         ]
       }
+      call_sheets: {
+        Row: {
+          call_time: string | null
+          created_at: string
+          id: string
+          lat: number | null
+          lng: number | null
+          location_address: string | null
+          location_name: string | null
+          notes: string | null
+          project_id: string
+          shoot_date: string | null
+          sort_order: number
+          title: string
+          updated_at: string
+          wrap_time: string | null
+        }
+        Insert: {
+          call_time?: string | null
+          created_at?: string
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          location_address?: string | null
+          location_name?: string | null
+          notes?: string | null
+          project_id: string
+          shoot_date?: string | null
+          sort_order?: number
+          title: string
+          updated_at?: string
+          wrap_time?: string | null
+        }
+        Update: {
+          call_time?: string | null
+          created_at?: string
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          location_address?: string | null
+          location_name?: string | null
+          notes?: string | null
+          project_id?: string
+          shoot_date?: string | null
+          sort_order?: number
+          title?: string
+          updated_at?: string
+          wrap_time?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_sheets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       equipment: {
         Row: {
           category: string
@@ -128,6 +187,69 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      shots: {
+        Row: {
+          call_sheet_id: string | null
+          created_at: string
+          description: string
+          id: string
+          is_done: boolean
+          movement: string | null
+          notes: string | null
+          project_id: string
+          scene: string | null
+          shot_size: string | null
+          sort_order: number
+          storyboard_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          call_sheet_id?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          is_done?: boolean
+          movement?: string | null
+          notes?: string | null
+          project_id: string
+          scene?: string | null
+          shot_size?: string | null
+          sort_order?: number
+          storyboard_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          call_sheet_id?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          is_done?: boolean
+          movement?: string | null
+          notes?: string | null
+          project_id?: string
+          scene?: string | null
+          shot_size?: string | null
+          sort_order?: number
+          storyboard_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shots_call_sheet_id_fkey"
+            columns: ["call_sheet_id"]
+            isOneToOne: false
+            referencedRelation: "call_sheets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shots_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tasks: {
         Row: {
