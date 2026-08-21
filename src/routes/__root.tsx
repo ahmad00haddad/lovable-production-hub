@@ -7,11 +7,14 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Toaster } from "sonner";
+import { Download, X } from "lucide-react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { usePWAInstall } from "../hooks/usePWAInstall";
+
 
 function NotFoundComponent() {
   return (
@@ -125,7 +128,58 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
+      <PWAInstallButton />
       <Toaster position="top-center" theme="dark" richColors />
     </QueryClientProvider>
   );
 }
+
+function PWAInstallButton() {
+  const { isInstallable, isIOS, install, dismiss } = usePWAInstall();
+  const [showIOSHint, setShowIOSHint] = useState(false);
+
+  if (!isInstallable && !isIOS) return null;
+
+  return (
+    <div className="fixed bottom-20 left-4 z-50 flex flex-col items-start gap-2">
+      {showIOSHint && (
+        <div className="max-w-[240px] rounded-xl bg-card p-3 text-xs text-card-foreground shadow-lg border border-border">
+          <p className="mb-1 font-medium">لتثبيت التطبيق على iPhone:</p>
+          <p>اضغط <span className="font-bold">Share</span> ثم <span className="font-bold">Add to Home Screen</span>.</p>
+          <button
+            onClick={() => setShowIOSHint(false)}
+            className="mt-2 text-xs text-muted-foreground hover:text-foreground underline"
+          >
+            فهمت
+          </button>
+        </div>
+      )}
+
+      <button
+        onClick={() => {
+          if (isInstallable) {
+            install();
+          } else if (isIOS) {
+            setShowIOSHint(true);
+          }
+        }}
+        className="group flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-bold text-primary-foreground shadow-lg transition hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+        aria-label="تثبيت التطبيق"
+      >
+        <Download size={18} strokeWidth={2.5} />
+        <span>تثبيت التطبيق</span>
+      </button>
+
+      {isInstallable && (
+        <button
+          onClick={dismiss}
+          className="absolute -top-1 -left-1 flex h-5 w-5 items-center justify-center rounded-full bg-muted text-muted-foreground hover:text-foreground"
+          aria-label="إخفاء زر التثبيت"
+        >
+          <X size={12} />
+        </button>
+      )}
+    </div>
+  );
+}
+
