@@ -14,6 +14,7 @@ import { Route as PProjectIdRouteImport } from './routes/p.$projectId'
 import { Route as PProjectIdIndexRouteImport } from './routes/p.$projectId.index'
 import { Route as PProjectIdSettingsRouteImport } from './routes/p.$projectId.settings'
 import { Route as PProjectIdEquipmentRouteImport } from './routes/p.$projectId.equipment'
+import { Route as PProjectIdCallsheetsRouteImport } from './routes/p.$projectId.callsheets'
 import { Route as PProjectIdMemberIdRouteImport } from './routes/p.$projectId.member.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -41,6 +42,11 @@ const PProjectIdEquipmentRoute = PProjectIdEquipmentRouteImport.update({
   path: '/equipment',
   getParentRoute: () => PProjectIdRoute,
 } as any)
+const PProjectIdCallsheetsRoute = PProjectIdCallsheetsRouteImport.update({
+  id: '/callsheets',
+  path: '/callsheets',
+  getParentRoute: () => PProjectIdRoute,
+} as any)
 const PProjectIdMemberIdRoute = PProjectIdMemberIdRouteImport.update({
   id: '/member/$id',
   path: '/member/$id',
@@ -50,6 +56,7 @@ const PProjectIdMemberIdRoute = PProjectIdMemberIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/p/$projectId': typeof PProjectIdRouteWithChildren
+  '/p/$projectId/callsheets': typeof PProjectIdCallsheetsRoute
   '/p/$projectId/equipment': typeof PProjectIdEquipmentRoute
   '/p/$projectId/settings': typeof PProjectIdSettingsRoute
   '/p/$projectId/': typeof PProjectIdIndexRoute
@@ -57,6 +64,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/p/$projectId/callsheets': typeof PProjectIdCallsheetsRoute
   '/p/$projectId/equipment': typeof PProjectIdEquipmentRoute
   '/p/$projectId/settings': typeof PProjectIdSettingsRoute
   '/p/$projectId': typeof PProjectIdIndexRoute
@@ -66,6 +74,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/p/$projectId': typeof PProjectIdRouteWithChildren
+  '/p/$projectId/callsheets': typeof PProjectIdCallsheetsRoute
   '/p/$projectId/equipment': typeof PProjectIdEquipmentRoute
   '/p/$projectId/settings': typeof PProjectIdSettingsRoute
   '/p/$projectId/': typeof PProjectIdIndexRoute
@@ -76,6 +85,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/p/$projectId'
+    | '/p/$projectId/callsheets'
     | '/p/$projectId/equipment'
     | '/p/$projectId/settings'
     | '/p/$projectId/'
@@ -83,6 +93,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/p/$projectId/callsheets'
     | '/p/$projectId/equipment'
     | '/p/$projectId/settings'
     | '/p/$projectId'
@@ -91,6 +102,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/p/$projectId'
+    | '/p/$projectId/callsheets'
     | '/p/$projectId/equipment'
     | '/p/$projectId/settings'
     | '/p/$projectId/'
@@ -139,6 +151,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PProjectIdEquipmentRouteImport
       parentRoute: typeof PProjectIdRoute
     }
+    '/p/$projectId/callsheets': {
+      id: '/p/$projectId/callsheets'
+      path: '/callsheets'
+      fullPath: '/p/$projectId/callsheets'
+      preLoaderRoute: typeof PProjectIdCallsheetsRouteImport
+      parentRoute: typeof PProjectIdRoute
+    }
     '/p/$projectId/member/$id': {
       id: '/p/$projectId/member/$id'
       path: '/member/$id'
@@ -150,6 +169,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface PProjectIdRouteChildren {
+  PProjectIdCallsheetsRoute: typeof PProjectIdCallsheetsRoute
   PProjectIdEquipmentRoute: typeof PProjectIdEquipmentRoute
   PProjectIdSettingsRoute: typeof PProjectIdSettingsRoute
   PProjectIdIndexRoute: typeof PProjectIdIndexRoute
@@ -157,6 +177,7 @@ interface PProjectIdRouteChildren {
 }
 
 const PProjectIdRouteChildren: PProjectIdRouteChildren = {
+  PProjectIdCallsheetsRoute: PProjectIdCallsheetsRoute,
   PProjectIdEquipmentRoute: PProjectIdEquipmentRoute,
   PProjectIdSettingsRoute: PProjectIdSettingsRoute,
   PProjectIdIndexRoute: PProjectIdIndexRoute,

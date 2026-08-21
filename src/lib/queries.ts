@@ -62,3 +62,46 @@ export const activityLogQuery = (projectId: string) => queryOptions({
     return data;
   },
 });
+
+export const callSheetsQuery = (projectId: string) => queryOptions({
+  queryKey: ["call_sheets", projectId],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("call_sheets")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("shoot_date", { ascending: true, nullsFirst: false })
+      .order("created_at");
+    if (error) throw error;
+    return data;
+  },
+});
+
+export const callSheetQuery = (projectId: string, callSheetId: string) => queryOptions({
+  queryKey: ["call_sheet", projectId, callSheetId],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("call_sheets")
+      .select("*")
+      .eq("id", callSheetId)
+      .eq("project_id", projectId)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+});
+
+export const shotsQuery = (projectId: string, callSheetId: string) => queryOptions({
+  queryKey: ["shots", projectId, callSheetId],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("shots")
+      .select("*")
+      .eq("project_id", projectId)
+      .eq("call_sheet_id", callSheetId)
+      .order("sort_order")
+      .order("created_at");
+    if (error) throw error;
+    return data;
+  },
+});
