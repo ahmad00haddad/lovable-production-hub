@@ -67,7 +67,17 @@ function ProjectLayoutInner() {
             <Home size={20} strokeWidth={isHome ? 2.5 : 2} />
             <span className="text-[10px] font-bold">الرئيسية</span>
           </Link>
-          
+
+          <Link
+            to="/p/$projectId/callsheets"
+            params={{ projectId }}
+            className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-colors min-w-[64px] ${isCallSheets ? 'text-amber' : 'text-muted-foreground hover:text-white hover:bg-white/5'}`}
+          >
+            <CalendarDays size={20} strokeWidth={isCallSheets ? 2.5 : 2} />
+            <span className="text-[10px] font-bold">الجداول</span>
+          </Link>
+
+
           <Link
             to="/p/$projectId/equipment"
             params={{ projectId }}
