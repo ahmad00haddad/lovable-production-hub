@@ -35,7 +35,9 @@ function ProjectLayoutInner() {
   const isTasks = currentPath.includes('/member/') || currentPath.endsWith('/tasks');
   const isEquipment = currentPath.endsWith('/equipment');
   const isSettings = currentPath.endsWith('/settings');
-  const isHome = !isTasks && !isEquipment && !isSettings;
+  const isCallSheets = currentPath.includes('/callsheet');
+  const isHome = !isTasks && !isEquipment && !isSettings && !isCallSheets;
+
 
   return (
     <div className="flex flex-col min-h-dvh bg-background pb-16">
