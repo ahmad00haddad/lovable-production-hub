@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, Link, useRouter, useMatch } from "@tanstack/re
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { projectQuery } from "@/lib/queries";
 import { AuthProvider, useAuth } from "@/components/AuthProvider";
-import { Settings, UserCircle, Home, Package, CheckSquare } from "lucide-react";
+import { Settings, UserCircle, Home, Package, CheckSquare, CalendarDays } from "lucide-react";
 
 export const Route = createFileRoute("/p/$projectId")({
   loader: ({ context, params }) => {
@@ -35,7 +35,9 @@ function ProjectLayoutInner() {
   const isTasks = currentPath.includes('/member/') || currentPath.endsWith('/tasks');
   const isEquipment = currentPath.endsWith('/equipment');
   const isSettings = currentPath.endsWith('/settings');
-  const isHome = !isTasks && !isEquipment && !isSettings;
+  const isCallSheets = currentPath.includes('/callsheet');
+  const isHome = !isTasks && !isEquipment && !isSettings && !isCallSheets;
+
 
   return (
     <div className="flex flex-col min-h-dvh bg-background pb-16">
@@ -65,7 +67,17 @@ function ProjectLayoutInner() {
             <Home size={20} strokeWidth={isHome ? 2.5 : 2} />
             <span className="text-[10px] font-bold">الرئيسية</span>
           </Link>
-          
+
+          <Link
+            to="/p/$projectId/callsheets"
+            params={{ projectId }}
+            className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-colors min-w-[64px] ${isCallSheets ? 'text-amber' : 'text-muted-foreground hover:text-white hover:bg-white/5'}`}
+          >
+            <CalendarDays size={20} strokeWidth={isCallSheets ? 2.5 : 2} />
+            <span className="text-[10px] font-bold">الجداول</span>
+          </Link>
+
+
           <Link
             to="/p/$projectId/equipment"
             params={{ projectId }}

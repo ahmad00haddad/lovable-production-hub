@@ -16,6 +16,7 @@ import { Route as PProjectIdSettingsRouteImport } from './routes/p.$projectId.se
 import { Route as PProjectIdEquipmentRouteImport } from './routes/p.$projectId.equipment'
 import { Route as PProjectIdCallsheetsRouteImport } from './routes/p.$projectId.callsheets'
 import { Route as PProjectIdMemberIdRouteImport } from './routes/p.$projectId.member.$id'
+import { Route as PProjectIdCallsheetCsIdRouteImport } from './routes/p.$projectId.callsheet.$csId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -52,6 +53,11 @@ const PProjectIdMemberIdRoute = PProjectIdMemberIdRouteImport.update({
   path: '/member/$id',
   getParentRoute: () => PProjectIdRoute,
 } as any)
+const PProjectIdCallsheetCsIdRoute = PProjectIdCallsheetCsIdRouteImport.update({
+  id: '/callsheet/$csId',
+  path: '/callsheet/$csId',
+  getParentRoute: () => PProjectIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -60,6 +66,7 @@ export interface FileRoutesByFullPath {
   '/p/$projectId/equipment': typeof PProjectIdEquipmentRoute
   '/p/$projectId/settings': typeof PProjectIdSettingsRoute
   '/p/$projectId/': typeof PProjectIdIndexRoute
+  '/p/$projectId/callsheet/$csId': typeof PProjectIdCallsheetCsIdRoute
   '/p/$projectId/member/$id': typeof PProjectIdMemberIdRoute
 }
 export interface FileRoutesByTo {
@@ -68,6 +75,7 @@ export interface FileRoutesByTo {
   '/p/$projectId/equipment': typeof PProjectIdEquipmentRoute
   '/p/$projectId/settings': typeof PProjectIdSettingsRoute
   '/p/$projectId': typeof PProjectIdIndexRoute
+  '/p/$projectId/callsheet/$csId': typeof PProjectIdCallsheetCsIdRoute
   '/p/$projectId/member/$id': typeof PProjectIdMemberIdRoute
 }
 export interface FileRoutesById {
@@ -78,6 +86,7 @@ export interface FileRoutesById {
   '/p/$projectId/equipment': typeof PProjectIdEquipmentRoute
   '/p/$projectId/settings': typeof PProjectIdSettingsRoute
   '/p/$projectId/': typeof PProjectIdIndexRoute
+  '/p/$projectId/callsheet/$csId': typeof PProjectIdCallsheetCsIdRoute
   '/p/$projectId/member/$id': typeof PProjectIdMemberIdRoute
 }
 export interface FileRouteTypes {
@@ -89,6 +98,7 @@ export interface FileRouteTypes {
     | '/p/$projectId/equipment'
     | '/p/$projectId/settings'
     | '/p/$projectId/'
+    | '/p/$projectId/callsheet/$csId'
     | '/p/$projectId/member/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -97,6 +107,7 @@ export interface FileRouteTypes {
     | '/p/$projectId/equipment'
     | '/p/$projectId/settings'
     | '/p/$projectId'
+    | '/p/$projectId/callsheet/$csId'
     | '/p/$projectId/member/$id'
   id:
     | '__root__'
@@ -106,6 +117,7 @@ export interface FileRouteTypes {
     | '/p/$projectId/equipment'
     | '/p/$projectId/settings'
     | '/p/$projectId/'
+    | '/p/$projectId/callsheet/$csId'
     | '/p/$projectId/member/$id'
   fileRoutesById: FileRoutesById
 }
@@ -165,6 +177,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PProjectIdMemberIdRouteImport
       parentRoute: typeof PProjectIdRoute
     }
+    '/p/$projectId/callsheet/$csId': {
+      id: '/p/$projectId/callsheet/$csId'
+      path: '/callsheet/$csId'
+      fullPath: '/p/$projectId/callsheet/$csId'
+      preLoaderRoute: typeof PProjectIdCallsheetCsIdRouteImport
+      parentRoute: typeof PProjectIdRoute
+    }
   }
 }
 
@@ -173,6 +192,7 @@ interface PProjectIdRouteChildren {
   PProjectIdEquipmentRoute: typeof PProjectIdEquipmentRoute
   PProjectIdSettingsRoute: typeof PProjectIdSettingsRoute
   PProjectIdIndexRoute: typeof PProjectIdIndexRoute
+  PProjectIdCallsheetCsIdRoute: typeof PProjectIdCallsheetCsIdRoute
   PProjectIdMemberIdRoute: typeof PProjectIdMemberIdRoute
 }
 
@@ -181,6 +201,7 @@ const PProjectIdRouteChildren: PProjectIdRouteChildren = {
   PProjectIdEquipmentRoute: PProjectIdEquipmentRoute,
   PProjectIdSettingsRoute: PProjectIdSettingsRoute,
   PProjectIdIndexRoute: PProjectIdIndexRoute,
+  PProjectIdCallsheetCsIdRoute: PProjectIdCallsheetCsIdRoute,
   PProjectIdMemberIdRoute: PProjectIdMemberIdRoute,
 }
 
