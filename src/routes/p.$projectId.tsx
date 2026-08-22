@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, Link, useRouter, useMatch } from "@tanstack/re
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { projectQuery } from "@/lib/queries";
 import { AuthProvider, useAuth } from "@/components/AuthProvider";
-import { Settings, UserCircle, Home, Package, CheckSquare } from "lucide-react";
+import { Settings, UserCircle, Home, Package, CheckSquare, CalendarDays } from "lucide-react";
 
 export const Route = createFileRoute("/p/$projectId")({
   loader: ({ context, params }) => {
