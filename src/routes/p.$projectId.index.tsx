@@ -216,24 +216,46 @@ function Home() {
       
       <ActivityFeed projectId={projectId} />
 
-      <Link
-        to="/p/$projectId/equipment"
-        params={{ projectId }}
-        className="glass-card flex items-center justify-between rounded-2xl p-4 transition-transform active:scale-[0.98]"
-      >
-        <div className="flex items-center gap-3">
-          <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-amber-gradient">
-            <Package size={20} />
-          </div>
-          <div>
-            <div className="text-base font-bold">قائمة المعدات المشتركة</div>
-            <div className="text-[11px] text-muted-foreground">
-              {equipment.filter((e) => e.is_secured).length} من {equipment.length} تم تأمينها
+      <div className="space-y-3">
+        <Link
+          to="/p/$projectId/callsheets"
+          params={{ projectId }}
+          className="glass-card flex items-center justify-between rounded-2xl p-4 transition-transform active:scale-[0.98]"
+        >
+          <div className="flex items-center gap-3">
+            <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-amber-gradient text-black">
+              <CalendarDays size={20} />
+            </div>
+            <div>
+              <div className="text-base font-bold">جداول التصوير واللقطات</div>
+              <div className="text-[11px] text-muted-foreground">
+                مواعيد الحضور، المواقع، الطقس، وقائمة اللقطات
+              </div>
             </div>
           </div>
-        </div>
-        <ChevronLeft className="text-muted-foreground" size={20} />
-      </Link>
+          <ChevronLeft className="text-muted-foreground" size={20} />
+        </Link>
+
+        <Link
+          to="/p/$projectId/equipment"
+          params={{ projectId }}
+          className="glass-card flex items-center justify-between rounded-2xl p-4 transition-transform active:scale-[0.98]"
+        >
+          <div className="flex items-center gap-3">
+            <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-amber-gradient">
+              <Package size={20} />
+            </div>
+            <div>
+              <div className="text-base font-bold">قائمة المعدات المشتركة</div>
+              <div className="text-[11px] text-muted-foreground">
+                {equipment.filter((e) => e.is_secured).length} من {equipment.length} تم تأمينها
+              </div>
+            </div>
+          </div>
+          <ChevronLeft className="text-muted-foreground" size={20} />
+        </Link>
+      </div>
+
     </div>
   );
 }
