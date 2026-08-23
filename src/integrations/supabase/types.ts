@@ -345,7 +345,67 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_project: {
+        Args: { _end_date?: string; _name: string; _start_date?: string }
+        Returns: {
+          created_at: string | null
+          end_date: string | null
+          id: string
+          name: string
+          short_code: string
+          start_date: string | null
+          updated_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "projects"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_project: {
+        Args: { _project_id: string }
+        Returns: {
+          created_at: string | null
+          end_date: string | null
+          id: string
+          name: string
+          short_code: string
+          start_date: string | null
+          updated_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "projects"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       project_exists: { Args: { _project_id: string }; Returns: boolean }
+      resolve_project_code: { Args: { _short_code: string }; Returns: string }
+      update_project: {
+        Args: {
+          _end_date?: string
+          _name: string
+          _project_id: string
+          _start_date?: string
+        }
+        Returns: {
+          created_at: string | null
+          end_date: string | null
+          id: string
+          name: string
+          short_code: string
+          start_date: string | null
+          updated_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "projects"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
     }
     Enums: {
       [_ in never]: never
