@@ -40,11 +40,9 @@ function LandingPage() {
       }
 
       // Check if it's a short code (around 6 chars)
-      const { data, error } = await supabase
-        .from("projects")
-        .select("id")
-        .eq("short_code", code.toUpperCase())
-        .maybeSingle();
+      const { data, error } = await supabase.rpc("resolve_project_code", {
+        _short_code: code,
+      });
 
       if (error) throw error;
       if (!data) {
@@ -52,7 +50,7 @@ function LandingPage() {
         return;
       }
 
-      navigate({ to: "/p/$projectId", params: { projectId: data.id } });
+      navigate({ to: "/p/$projectId", params: { projectId: data } });
     } catch (err: any) {
       toast.error("حدث خطأ أثناء الانضمام");
       console.error(err);
