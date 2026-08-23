@@ -45,14 +45,12 @@ function SettingsPage() {
 
   const updateProject = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase
-        .from("projects")
-        .update({
-          name: projectName,
-          start_date: startDate || null,
-          end_date: endDate || null,
-        })
-        .eq("id", projectId);
+      const { error } = await supabase.rpc("update_project", {
+        _project_id: projectId,
+        _name: projectName,
+        _start_date: startDate || null,
+        _end_date: endDate || null,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
