@@ -108,3 +108,59 @@ export const shotsQuery = (projectId: string, callSheetId: string) => queryOptio
     return data;
   },
 });
+
+export const financeQuery = (projectId: string) => queryOptions({
+  queryKey: ["finance_entries", projectId],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("finance_entries")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("entry_date", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data;
+  },
+});
+
+export const quotationsQuery = (projectId: string) => queryOptions({
+  queryKey: ["quotations", projectId],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("quotations")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data;
+  },
+});
+
+export const quotationQuery = (projectId: string, quoteId: string) => queryOptions({
+  queryKey: ["quotation", projectId, quoteId],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("quotations")
+      .select("*")
+      .eq("id", quoteId)
+      .eq("project_id", projectId)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+});
+
+export const quotationItemsQuery = (projectId: string, quoteId: string) => queryOptions({
+  queryKey: ["quotation_items", projectId, quoteId],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("quotation_items")
+      .select("*")
+      .eq("project_id", projectId)
+      .eq("quotation_id", quoteId)
+      .order("sort_order")
+      .order("created_at");
+    if (error) throw error;
+    return data;
+  },
+});
