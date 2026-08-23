@@ -48,8 +48,8 @@ function SettingsPage() {
       const { error } = await supabase.rpc("update_project", {
         _project_id: projectId,
         _name: projectName,
-        _start_date: startDate || null,
-        _end_date: endDate || null,
+        _start_date: startDate || undefined,
+        _end_date: endDate || undefined,
       });
       if (error) throw error;
     },

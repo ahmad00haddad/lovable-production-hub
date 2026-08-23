@@ -68,8 +68,8 @@ function LandingPage() {
       const { data, error } = await supabase
         .rpc("create_project", {
           _name: projectName.trim(),
-          _start_date: startDate || null,
-          _end_date: endDate || null,
+          _start_date: startDate || undefined,
+          _end_date: endDate || undefined,
         })
         .maybeSingle();
 
