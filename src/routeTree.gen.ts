@@ -13,6 +13,8 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as PProjectIdRouteImport } from './routes/p.$projectId'
 import { Route as PProjectIdIndexRouteImport } from './routes/p.$projectId.index'
 import { Route as PProjectIdSettingsRouteImport } from './routes/p.$projectId.settings'
+import { Route as PProjectIdQuotationsRouteImport } from './routes/p.$projectId.quotations'
+import { Route as PProjectIdFinanceRouteImport } from './routes/p.$projectId.finance'
 import { Route as PProjectIdEquipmentRouteImport } from './routes/p.$projectId.equipment'
 import { Route as PProjectIdCallsheetsRouteImport } from './routes/p.$projectId.callsheets'
 import { Route as PProjectIdMemberIdRouteImport } from './routes/p.$projectId.member.$id'
@@ -36,6 +38,16 @@ const PProjectIdIndexRoute = PProjectIdIndexRouteImport.update({
 const PProjectIdSettingsRoute = PProjectIdSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => PProjectIdRoute,
+} as any)
+const PProjectIdQuotationsRoute = PProjectIdQuotationsRouteImport.update({
+  id: '/quotations',
+  path: '/quotations',
+  getParentRoute: () => PProjectIdRoute,
+} as any)
+const PProjectIdFinanceRoute = PProjectIdFinanceRouteImport.update({
+  id: '/finance',
+  path: '/finance',
   getParentRoute: () => PProjectIdRoute,
 } as any)
 const PProjectIdEquipmentRoute = PProjectIdEquipmentRouteImport.update({
@@ -64,6 +76,8 @@ export interface FileRoutesByFullPath {
   '/p/$projectId': typeof PProjectIdRouteWithChildren
   '/p/$projectId/callsheets': typeof PProjectIdCallsheetsRoute
   '/p/$projectId/equipment': typeof PProjectIdEquipmentRoute
+  '/p/$projectId/finance': typeof PProjectIdFinanceRoute
+  '/p/$projectId/quotations': typeof PProjectIdQuotationsRoute
   '/p/$projectId/settings': typeof PProjectIdSettingsRoute
   '/p/$projectId/': typeof PProjectIdIndexRoute
   '/p/$projectId/callsheet/$csId': typeof PProjectIdCallsheetCsIdRoute
@@ -73,6 +87,8 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/p/$projectId/callsheets': typeof PProjectIdCallsheetsRoute
   '/p/$projectId/equipment': typeof PProjectIdEquipmentRoute
+  '/p/$projectId/finance': typeof PProjectIdFinanceRoute
+  '/p/$projectId/quotations': typeof PProjectIdQuotationsRoute
   '/p/$projectId/settings': typeof PProjectIdSettingsRoute
   '/p/$projectId': typeof PProjectIdIndexRoute
   '/p/$projectId/callsheet/$csId': typeof PProjectIdCallsheetCsIdRoute
@@ -84,6 +100,8 @@ export interface FileRoutesById {
   '/p/$projectId': typeof PProjectIdRouteWithChildren
   '/p/$projectId/callsheets': typeof PProjectIdCallsheetsRoute
   '/p/$projectId/equipment': typeof PProjectIdEquipmentRoute
+  '/p/$projectId/finance': typeof PProjectIdFinanceRoute
+  '/p/$projectId/quotations': typeof PProjectIdQuotationsRoute
   '/p/$projectId/settings': typeof PProjectIdSettingsRoute
   '/p/$projectId/': typeof PProjectIdIndexRoute
   '/p/$projectId/callsheet/$csId': typeof PProjectIdCallsheetCsIdRoute
@@ -96,6 +114,8 @@ export interface FileRouteTypes {
     | '/p/$projectId'
     | '/p/$projectId/callsheets'
     | '/p/$projectId/equipment'
+    | '/p/$projectId/finance'
+    | '/p/$projectId/quotations'
     | '/p/$projectId/settings'
     | '/p/$projectId/'
     | '/p/$projectId/callsheet/$csId'
@@ -105,6 +125,8 @@ export interface FileRouteTypes {
     | '/'
     | '/p/$projectId/callsheets'
     | '/p/$projectId/equipment'
+    | '/p/$projectId/finance'
+    | '/p/$projectId/quotations'
     | '/p/$projectId/settings'
     | '/p/$projectId'
     | '/p/$projectId/callsheet/$csId'
@@ -115,6 +137,8 @@ export interface FileRouteTypes {
     | '/p/$projectId'
     | '/p/$projectId/callsheets'
     | '/p/$projectId/equipment'
+    | '/p/$projectId/finance'
+    | '/p/$projectId/quotations'
     | '/p/$projectId/settings'
     | '/p/$projectId/'
     | '/p/$projectId/callsheet/$csId'
@@ -156,6 +180,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PProjectIdSettingsRouteImport
       parentRoute: typeof PProjectIdRoute
     }
+    '/p/$projectId/quotations': {
+      id: '/p/$projectId/quotations'
+      path: '/quotations'
+      fullPath: '/p/$projectId/quotations'
+      preLoaderRoute: typeof PProjectIdQuotationsRouteImport
+      parentRoute: typeof PProjectIdRoute
+    }
+    '/p/$projectId/finance': {
+      id: '/p/$projectId/finance'
+      path: '/finance'
+      fullPath: '/p/$projectId/finance'
+      preLoaderRoute: typeof PProjectIdFinanceRouteImport
+      parentRoute: typeof PProjectIdRoute
+    }
     '/p/$projectId/equipment': {
       id: '/p/$projectId/equipment'
       path: '/equipment'
@@ -190,6 +228,8 @@ declare module '@tanstack/react-router' {
 interface PProjectIdRouteChildren {
   PProjectIdCallsheetsRoute: typeof PProjectIdCallsheetsRoute
   PProjectIdEquipmentRoute: typeof PProjectIdEquipmentRoute
+  PProjectIdFinanceRoute: typeof PProjectIdFinanceRoute
+  PProjectIdQuotationsRoute: typeof PProjectIdQuotationsRoute
   PProjectIdSettingsRoute: typeof PProjectIdSettingsRoute
   PProjectIdIndexRoute: typeof PProjectIdIndexRoute
   PProjectIdCallsheetCsIdRoute: typeof PProjectIdCallsheetCsIdRoute
@@ -199,6 +239,8 @@ interface PProjectIdRouteChildren {
 const PProjectIdRouteChildren: PProjectIdRouteChildren = {
   PProjectIdCallsheetsRoute: PProjectIdCallsheetsRoute,
   PProjectIdEquipmentRoute: PProjectIdEquipmentRoute,
+  PProjectIdFinanceRoute: PProjectIdFinanceRoute,
+  PProjectIdQuotationsRoute: PProjectIdQuotationsRoute,
   PProjectIdSettingsRoute: PProjectIdSettingsRoute,
   PProjectIdIndexRoute: PProjectIdIndexRoute,
   PProjectIdCallsheetCsIdRoute: PProjectIdCallsheetCsIdRoute,

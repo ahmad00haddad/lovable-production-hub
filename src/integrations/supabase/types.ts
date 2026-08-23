@@ -158,6 +158,65 @@ export type Database = {
           },
         ]
       }
+      finance_entries: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          currency: string
+          entry_date: string | null
+          entry_type: string
+          id: string
+          is_paid: boolean
+          notes: string | null
+          party: string | null
+          project_id: string
+          sort_order: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          category?: string
+          created_at?: string
+          currency?: string
+          entry_date?: string | null
+          entry_type?: string
+          id?: string
+          is_paid?: boolean
+          notes?: string | null
+          party?: string | null
+          project_id: string
+          sort_order?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          currency?: string
+          entry_date?: string | null
+          entry_type?: string
+          id?: string
+          is_paid?: boolean
+          notes?: string | null
+          party?: string | null
+          project_id?: string
+          sort_order?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_entries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           created_at: string | null
@@ -187,6 +246,131 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      quotation_items: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          project_id: string
+          quantity: number
+          quotation_id: string
+          sort_order: number
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          project_id: string
+          quantity?: number
+          quotation_id: string
+          sort_order?: number
+          unit_price?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          project_id?: string
+          quantity?: number
+          quotation_id?: string
+          sort_order?: number
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotation_items_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotation_items_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "quotations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quotations: {
+        Row: {
+          client_contact: string | null
+          client_name: string | null
+          contract_body: string | null
+          created_at: string
+          currency: string
+          discount: number
+          id: string
+          issue_date: string | null
+          notes: string | null
+          project_id: string
+          quote_number: string | null
+          signature_name: string | null
+          signed_at: string | null
+          status: string
+          tax_percent: number
+          terms: string | null
+          title: string
+          updated_at: string
+          valid_until: string | null
+        }
+        Insert: {
+          client_contact?: string | null
+          client_name?: string | null
+          contract_body?: string | null
+          created_at?: string
+          currency?: string
+          discount?: number
+          id?: string
+          issue_date?: string | null
+          notes?: string | null
+          project_id: string
+          quote_number?: string | null
+          signature_name?: string | null
+          signed_at?: string | null
+          status?: string
+          tax_percent?: number
+          terms?: string | null
+          title?: string
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Update: {
+          client_contact?: string | null
+          client_name?: string | null
+          contract_body?: string | null
+          created_at?: string
+          currency?: string
+          discount?: number
+          id?: string
+          issue_date?: string | null
+          notes?: string | null
+          project_id?: string
+          quote_number?: string | null
+          signature_name?: string | null
+          signed_at?: string | null
+          status?: string
+          tax_percent?: number
+          terms?: string | null
+          title?: string
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       shots: {
         Row: {
