@@ -4,8 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 export const projectQuery = (projectId: string) => queryOptions({
   queryKey: ["project", projectId],
   queryFn: async () => {
-    const { data, error } = await supabase.from("projects").select("*").eq("id", projectId).single();
+    const { data, error } = await supabase
+      .rpc("get_project", { _project_id: projectId })
+      .maybeSingle();
     if (error) throw error;
+    if (!data) throw new Error("PROJECT_NOT_FOUND");
     return data;
   }
 });
