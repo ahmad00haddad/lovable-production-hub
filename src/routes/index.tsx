@@ -64,45 +64,26 @@ function LandingPage() {
     if (!projectName.trim()) return;
 
     setIsCreating(true);
-    let attempts = 0;
-    const maxAttempts = 3;
+    try {
+      const { data, error } = await supabase
+        .rpc("create_project", {
+          _name: projectName.trim(),
+          _start_date: startDate || null,
+          _end_date: endDate || null,
+        })
+        .maybeSingle();
 
-    while (attempts < maxAttempts) {
-      try {
-        const shortCode = generateShortCode();
-        const { data, error } = await supabase
-          .from("projects")
-          .insert({
-            name: projectName,
-            short_code: shortCode,
-            start_date: startDate || null,
-            end_date: endDate || null
-          })
-          .select()
-          .single();
+      if (error) throw error;
+      if (!data) throw new Error("NO_PROJECT");
 
-        if (error) {
-          if (error.code === '23505') { // Unique violation
-            attempts++;
-            continue;
-          }
-          throw error;
-        }
-        
-        toast.success("تم إنشاء المشروع بنجاح!");
-        navigate({ to: "/p/$projectId/settings", params: { projectId: data.id } });
-        return;
-      } catch (err: any) {
-        toast.error("حدث خطأ أثناء الإنشاء");
-        console.error(err);
-        break;
-      }
+      toast.success("تم إنشاء المشروع بنجاح!");
+      navigate({ to: "/p/$projectId/settings", params: { projectId: data.id } });
+    } catch (err: any) {
+      toast.error("حدث خطأ أثناء الإنشاء");
+      console.error(err);
+    } finally {
+      setIsCreating(false);
     }
-    
-    if (attempts >= maxAttempts) {
-      toast.error("تعذر توليد كود فريد، يرجى المحاولة مجدداً.");
-    }
-    setIsCreating(false);
   };
 
   return (
