@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { teamQuery, tasksQuery, equipmentQuery, projectQuery } from "@/lib/queries";
 import { ProgressRing } from "@/components/ProgressRing";
 import { ActivityFeed } from "@/components/ActivityFeed";
-import { Camera, Mic, Video, ClipboardList, Package, ChevronLeft, Clock, Users } from "lucide-react";
+import { Camera, Mic, Video, ClipboardList, Package, ChevronLeft, Clock, Users, CalendarDays } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 
 export const Route = createFileRoute("/p/$projectId/")({
