@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, Link, useRouter, useMatch } from "@tanstack/re
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { projectQuery } from "@/lib/queries";
 import { AuthProvider, useAuth } from "@/components/AuthProvider";
-import { Settings, UserCircle, Home, Package, CheckSquare, CalendarDays } from "lucide-react";
+import { Settings, UserCircle, Home, Package, CheckSquare, CalendarDays, Wallet } from "lucide-react";
 
 export const Route = createFileRoute("/p/$projectId")({
   loader: ({ context, params }) => {
@@ -36,7 +36,8 @@ function ProjectLayoutInner() {
   const isEquipment = currentPath.endsWith('/equipment');
   const isSettings = currentPath.endsWith('/settings');
   const isCallSheets = currentPath.includes('/callsheet');
-  const isHome = !isTasks && !isEquipment && !isSettings && !isCallSheets;
+  const isFinance = currentPath.includes('/finance') || currentPath.includes('/quot');
+  const isHome = !isTasks && !isEquipment && !isSettings && !isCallSheets && !isFinance;
 
 
   return (
@@ -85,6 +86,15 @@ function ProjectLayoutInner() {
           >
             <Package size={20} strokeWidth={isEquipment ? 2.5 : 2} />
             <span className="text-[10px] font-bold">المعدات</span>
+          </Link>
+
+          <Link
+            to="/p/$projectId/finance"
+            params={{ projectId }}
+            className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-colors min-w-[64px] ${isFinance ? 'text-amber' : 'text-muted-foreground hover:text-white hover:bg-white/5'}`}
+          >
+            <Wallet size={20} strokeWidth={isFinance ? 2.5 : 2} />
+            <span className="text-[10px] font-bold">المالية</span>
           </Link>
 
           <Link
