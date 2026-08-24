@@ -17,6 +17,7 @@ import { Route as PProjectIdQuotationsRouteImport } from './routes/p.$projectId.
 import { Route as PProjectIdFinanceRouteImport } from './routes/p.$projectId.finance'
 import { Route as PProjectIdEquipmentRouteImport } from './routes/p.$projectId.equipment'
 import { Route as PProjectIdCallsheetsRouteImport } from './routes/p.$projectId.callsheets'
+import { Route as PProjectIdQuoteQIdRouteImport } from './routes/p.$projectId.quote.$qId'
 import { Route as PProjectIdMemberIdRouteImport } from './routes/p.$projectId.member.$id'
 import { Route as PProjectIdCallsheetCsIdRouteImport } from './routes/p.$projectId.callsheet.$csId'
 
@@ -60,6 +61,11 @@ const PProjectIdCallsheetsRoute = PProjectIdCallsheetsRouteImport.update({
   path: '/callsheets',
   getParentRoute: () => PProjectIdRoute,
 } as any)
+const PProjectIdQuoteQIdRoute = PProjectIdQuoteQIdRouteImport.update({
+  id: '/quote/$qId',
+  path: '/quote/$qId',
+  getParentRoute: () => PProjectIdRoute,
+} as any)
 const PProjectIdMemberIdRoute = PProjectIdMemberIdRouteImport.update({
   id: '/member/$id',
   path: '/member/$id',
@@ -82,6 +88,7 @@ export interface FileRoutesByFullPath {
   '/p/$projectId/': typeof PProjectIdIndexRoute
   '/p/$projectId/callsheet/$csId': typeof PProjectIdCallsheetCsIdRoute
   '/p/$projectId/member/$id': typeof PProjectIdMemberIdRoute
+  '/p/$projectId/quote/$qId': typeof PProjectIdQuoteQIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -93,6 +100,7 @@ export interface FileRoutesByTo {
   '/p/$projectId': typeof PProjectIdIndexRoute
   '/p/$projectId/callsheet/$csId': typeof PProjectIdCallsheetCsIdRoute
   '/p/$projectId/member/$id': typeof PProjectIdMemberIdRoute
+  '/p/$projectId/quote/$qId': typeof PProjectIdQuoteQIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -106,6 +114,7 @@ export interface FileRoutesById {
   '/p/$projectId/': typeof PProjectIdIndexRoute
   '/p/$projectId/callsheet/$csId': typeof PProjectIdCallsheetCsIdRoute
   '/p/$projectId/member/$id': typeof PProjectIdMemberIdRoute
+  '/p/$projectId/quote/$qId': typeof PProjectIdQuoteQIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -120,6 +129,7 @@ export interface FileRouteTypes {
     | '/p/$projectId/'
     | '/p/$projectId/callsheet/$csId'
     | '/p/$projectId/member/$id'
+    | '/p/$projectId/quote/$qId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -131,6 +141,7 @@ export interface FileRouteTypes {
     | '/p/$projectId'
     | '/p/$projectId/callsheet/$csId'
     | '/p/$projectId/member/$id'
+    | '/p/$projectId/quote/$qId'
   id:
     | '__root__'
     | '/'
@@ -143,6 +154,7 @@ export interface FileRouteTypes {
     | '/p/$projectId/'
     | '/p/$projectId/callsheet/$csId'
     | '/p/$projectId/member/$id'
+    | '/p/$projectId/quote/$qId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -208,6 +220,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PProjectIdCallsheetsRouteImport
       parentRoute: typeof PProjectIdRoute
     }
+    '/p/$projectId/quote/$qId': {
+      id: '/p/$projectId/quote/$qId'
+      path: '/quote/$qId'
+      fullPath: '/p/$projectId/quote/$qId'
+      preLoaderRoute: typeof PProjectIdQuoteQIdRouteImport
+      parentRoute: typeof PProjectIdRoute
+    }
     '/p/$projectId/member/$id': {
       id: '/p/$projectId/member/$id'
       path: '/member/$id'
@@ -234,6 +253,7 @@ interface PProjectIdRouteChildren {
   PProjectIdIndexRoute: typeof PProjectIdIndexRoute
   PProjectIdCallsheetCsIdRoute: typeof PProjectIdCallsheetCsIdRoute
   PProjectIdMemberIdRoute: typeof PProjectIdMemberIdRoute
+  PProjectIdQuoteQIdRoute: typeof PProjectIdQuoteQIdRoute
 }
 
 const PProjectIdRouteChildren: PProjectIdRouteChildren = {
@@ -245,6 +265,7 @@ const PProjectIdRouteChildren: PProjectIdRouteChildren = {
   PProjectIdIndexRoute: PProjectIdIndexRoute,
   PProjectIdCallsheetCsIdRoute: PProjectIdCallsheetCsIdRoute,
   PProjectIdMemberIdRoute: PProjectIdMemberIdRoute,
+  PProjectIdQuoteQIdRoute: PProjectIdQuoteQIdRoute,
 }
 
 const PProjectIdRouteWithChildren = PProjectIdRoute._addFileChildren(

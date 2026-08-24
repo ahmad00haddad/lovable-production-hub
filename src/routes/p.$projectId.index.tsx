@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { teamQuery, tasksQuery, equipmentQuery, projectQuery } from "@/lib/queries";
 import { ProgressRing } from "@/components/ProgressRing";
 import { ActivityFeed } from "@/components/ActivityFeed";
-import { Camera, Mic, Video, ClipboardList, Package, ChevronLeft, Clock, Users, CalendarDays } from "lucide-react";
+import { Camera, Mic, Video, ClipboardList, Package, ChevronLeft, Clock, Users, CalendarDays, Wallet } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 
 export const Route = createFileRoute("/p/$projectId/")({
@@ -230,6 +230,25 @@ function Home() {
               <div className="text-base font-bold">جداول التصوير واللقطات</div>
               <div className="text-[11px] text-muted-foreground">
                 مواعيد الحضور، المواقع، الطقس، وقائمة اللقطات
+              </div>
+            </div>
+          </div>
+          <ChevronLeft className="text-muted-foreground" size={20} />
+        </Link>
+
+        <Link
+          to="/p/$projectId/finance"
+          params={{ projectId }}
+          className="glass-card flex items-center justify-between rounded-2xl p-4 transition-transform active:scale-[0.98]"
+        >
+          <div className="flex items-center gap-3">
+            <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-amber-gradient text-black">
+              <Wallet size={20} />
+            </div>
+            <div>
+              <div className="text-base font-bold">الأموال والفواتير وعروض الأسعار</div>
+              <div className="text-[11px] text-muted-foreground">
+                الميزانية، المصاريف، المستحقات، والعقود
               </div>
             </div>
           </div>
