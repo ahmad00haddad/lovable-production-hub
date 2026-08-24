@@ -81,7 +81,7 @@ function QuoteDetail() {
     `${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
 
   const saveHead = useMutation({
-    mutationFn: async (patch?: Record<string, unknown>) => {
+    mutationFn: async (patch?: { status: string }) => {
       const { error } = await supabase
         .from("quotations")
         .update(
