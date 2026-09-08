@@ -109,11 +109,15 @@ function Home() {
       
       <Countdown targetDateString={project.start_date} />
 
+      <NextShootCard projectId={projectId} />
+
       <section className="glass-card mb-6 rounded-2xl p-5">
         <div className="flex items-center justify-between">
           <div>
             <div className="text-xs text-muted-foreground">الجاهزية الكلية للمشروع</div>
-            <div className="mt-1 text-2xl font-bold">{Math.round(overall)}%</div>
+            <div className="mt-1 text-2xl font-bold tabular-nums">
+              <CountUpNumber value={overall} />%
+            </div>
           </div>
           <ProgressRing value={overall} size={64} />
         </div>
@@ -121,14 +125,14 @@ function Home() {
           <div className="rounded-xl bg-white/5 p-3">
             <div className="text-[11px] text-muted-foreground">المهام</div>
             <div className="mt-0.5 text-lg font-bold tabular-nums">
-              {tasks.filter((t) => t.is_completed).length}
+              <CountUpNumber value={tasks.filter((t) => t.is_completed).length} />
               <span className="text-muted-foreground">/{tasks.length}</span>
             </div>
           </div>
           <div className="rounded-xl bg-white/5 p-3">
             <div className="text-[11px] text-muted-foreground">المعدات</div>
             <div className="mt-0.5 text-lg font-bold tabular-nums">
-              {equipment.filter((e) => e.is_secured).length}
+              <CountUpNumber value={equipment.filter((e) => e.is_secured).length} />
               <span className="text-muted-foreground">/{equipment.length}</span>
             </div>
           </div>
