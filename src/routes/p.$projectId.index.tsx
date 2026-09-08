@@ -1,8 +1,10 @@
 import { createFileRoute, Link, useParams, useRouter } from "@tanstack/react-router";
 import { useSuspenseQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { teamQuery, tasksQuery, equipmentQuery, projectQuery } from "@/lib/queries";
+import { teamQuery, tasksQuery, equipmentQuery, projectQuery, callSheetsQuery } from "@/lib/queries";
 import { ProgressRing } from "@/components/ProgressRing";
+import { CountUpNumber } from "@/components/CountUpNumber";
+import { NextShootCard } from "@/components/NextShootCard";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { Camera, Mic, Video, ClipboardList, Package, ChevronLeft, Clock, Users, CalendarDays, Wallet } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
@@ -13,6 +15,7 @@ export const Route = createFileRoute("/p/$projectId/")({
     context.queryClient.ensureQueryData(teamQuery(params.projectId));
     context.queryClient.ensureQueryData(tasksQuery(params.projectId));
     context.queryClient.ensureQueryData(equipmentQuery(params.projectId));
+    context.queryClient.ensureQueryData(callSheetsQuery(params.projectId));
   },
   pendingComponent: () => (
     <div className="flex h-64 items-center justify-center">
