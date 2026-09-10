@@ -56,6 +56,7 @@ export type Database = {
         Row: {
           call_time: string | null
           created_at: string
+          day_budget: number
           id: string
           lat: number | null
           lng: number | null
@@ -72,6 +73,7 @@ export type Database = {
         Insert: {
           call_time?: string | null
           created_at?: string
+          day_budget?: number
           id?: string
           lat?: number | null
           lng?: number | null
@@ -88,6 +90,7 @@ export type Database = {
         Update: {
           call_time?: string | null
           created_at?: string
+          day_budget?: number
           id?: string
           lat?: number | null
           lng?: number | null
@@ -107,6 +110,123 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crew_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          crew_rate_id: string
+          id: string
+          method: string | null
+          notes: string | null
+          paid_by: string
+          paid_on: string
+          project_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          crew_rate_id: string
+          id?: string
+          method?: string | null
+          notes?: string | null
+          paid_by?: string
+          paid_on?: string
+          project_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          crew_rate_id?: string
+          id?: string
+          method?: string | null
+          notes?: string | null
+          paid_by?: string
+          paid_on?: string
+          project_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crew_payments_crew_rate_id_fkey"
+            columns: ["crew_rate_id"]
+            isOneToOne: false
+            referencedRelation: "crew_rates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_payments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crew_rates: {
+        Row: {
+          created_at: string
+          currency: string
+          days: number
+          id: string
+          notes: string | null
+          person_name: string
+          project_id: string
+          rate: number
+          rate_type: string
+          role: string | null
+          sort_order: number
+          team_member_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          days?: number
+          id?: string
+          notes?: string | null
+          person_name: string
+          project_id: string
+          rate?: number
+          rate_type?: string
+          role?: string | null
+          sort_order?: number
+          team_member_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          days?: number
+          id?: string
+          notes?: string | null
+          person_name?: string
+          project_id?: string
+          rate?: number
+          rate_type?: string
+          role?: string | null
+          sort_order?: number
+          team_member_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crew_rates_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_rates_team_member_id_fkey"
+            columns: ["team_member_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
             referencedColumns: ["id"]
           },
         ]
@@ -161,53 +281,72 @@ export type Database = {
       finance_entries: {
         Row: {
           amount: number
+          call_sheet_id: string | null
           category: string
           created_at: string
           currency: string
+          due_date: string | null
           entry_date: string | null
           entry_type: string
           id: string
           is_paid: boolean
           notes: string | null
+          paid_by: string
           party: string | null
           project_id: string
           sort_order: number
+          team_member_id: string | null
           title: string
           updated_at: string
         }
         Insert: {
           amount?: number
+          call_sheet_id?: string | null
           category?: string
           created_at?: string
           currency?: string
+          due_date?: string | null
           entry_date?: string | null
           entry_type?: string
           id?: string
           is_paid?: boolean
           notes?: string | null
+          paid_by?: string
           party?: string | null
           project_id: string
           sort_order?: number
+          team_member_id?: string | null
           title: string
           updated_at?: string
         }
         Update: {
           amount?: number
+          call_sheet_id?: string | null
           category?: string
           created_at?: string
           currency?: string
+          due_date?: string | null
           entry_date?: string | null
           entry_type?: string
           id?: string
           is_paid?: boolean
           notes?: string | null
+          paid_by?: string
           party?: string | null
           project_id?: string
           sort_order?: number
+          team_member_id?: string | null
           title?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "finance_entries_call_sheet_id_fkey"
+            columns: ["call_sheet_id"]
+            isOneToOne: false
+            referencedRelation: "call_sheets"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "finance_entries_project_id_fkey"
             columns: ["project_id"]
@@ -215,12 +354,23 @@ export type Database = {
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "finance_entries_team_member_id_fkey"
+            columns: ["team_member_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
         ]
       }
       projects: {
         Row: {
+          client_budget: number
+          client_due_date: string | null
+          client_name: string | null
           created_at: string | null
           end_date: string | null
+          finance_pin_hash: string | null
           id: string
           name: string
           short_code: string
@@ -228,8 +378,12 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          client_budget?: number
+          client_due_date?: string | null
+          client_name?: string | null
           created_at?: string | null
           end_date?: string | null
+          finance_pin_hash?: string | null
           id?: string
           name: string
           short_code: string
@@ -237,8 +391,12 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          client_budget?: number
+          client_due_date?: string | null
+          client_name?: string | null
           created_at?: string | null
           end_date?: string | null
+          finance_pin_hash?: string | null
           id?: string
           name?: string
           short_code?: string
@@ -532,8 +690,12 @@ export type Database = {
       create_project: {
         Args: { _end_date?: string; _name: string; _start_date?: string }
         Returns: {
+          client_budget: number
+          client_due_date: string | null
+          client_name: string | null
           created_at: string | null
           end_date: string | null
+          finance_pin_hash: string | null
           id: string
           name: string
           short_code: string
@@ -550,8 +712,12 @@ export type Database = {
       get_project: {
         Args: { _project_id: string }
         Returns: {
+          client_budget: number
+          client_due_date: string | null
+          client_name: string | null
           created_at: string | null
           end_date: string | null
+          finance_pin_hash: string | null
           id: string
           name: string
           short_code: string
@@ -575,8 +741,12 @@ export type Database = {
           _start_date?: string
         }
         Returns: {
+          client_budget: number
+          client_due_date: string | null
+          client_name: string | null
           created_at: string | null
           end_date: string | null
+          finance_pin_hash: string | null
           id: string
           name: string
           short_code: string
