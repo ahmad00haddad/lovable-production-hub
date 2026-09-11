@@ -1,7 +1,10 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
-import { useSuspenseQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { quotationsQuery, projectQuery } from "@/lib/queries";
+import { useQuery, useSuspenseQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { projectQuery } from "@/lib/queries";
+import { quotationsListQuery } from "@/lib/finance-queries";
+import { financeWrite } from "@/lib/finance.functions";
+import { FinanceGate } from "@/components/FinanceGate";
 import { toast } from "sonner";
 import { Plus, FileText, ChevronLeft, Trash2 } from "lucide-react";
 
@@ -18,7 +21,6 @@ export const Route = createFileRoute("/p/$projectId/quotations")({
   }),
   loader: ({ context, params }) => {
     context.queryClient.ensureQueryData(projectQuery(params.projectId));
-    context.queryClient.ensureQueryData(quotationsQuery(params.projectId));
   },
   pendingComponent: () => (
     <div className="flex h-64 items-center justify-center">
@@ -37,39 +39,44 @@ const STATUS: Record<string, { label: string; cls: string }> = {
 
 function QuotationsPage() {
   const { projectId } = Route.useParams();
+  return (
+    <FinanceGate projectId={projectId}>
+      <QuotationsInner projectId={projectId} />
+    </FinanceGate>
+  );
+}
+
+function QuotationsInner({ projectId }: { projectId: string }) {
   const qc = useQueryClient();
   const router = useRouter();
   const { data: project } = useSuspenseQuery(projectQuery(projectId));
-  const { data: quotes } = useSuspenseQuery(quotationsQuery(projectId));
+  const { data: quotes, isLoading } = useQuery(quotationsListQuery(projectId, true));
+  const write = useServerFn(financeWrite);
 
   const create = useMutation({
-    mutationFn: async () => {
-      const { data, error } = await supabase
-        .from("quotations")
-        .insert({
-          project_id: projectId,
-          title: `عرض سعر — ${project.name}`,
-          quote_number: `Q-${String(quotes.length + 1).padStart(3, "0")}`,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: ["quotations", projectId] });
-      router.navigate({ to: "/p/$projectId/quote/$qId", params: { projectId, qId: data.id } });
+    mutationFn: () =>
+      write({
+        data: {
+          projectId,
+          table: "quotations",
+          action: "insert",
+          values: {
+            title: `عرض سعر — ${project.name}`,
+            quote_number: `Q-${String((quotes?.length ?? 0) + 1).padStart(3, "0")}`,
+          },
+        },
+      }),
+    onSuccess: (row) => {
+      qc.invalidateQueries({ queryKey: ["finance-quotations", projectId] });
+      router.navigate({ to: "/p/$projectId/quote/$qId", params: { projectId, qId: (row as { id: string }).id } });
     },
     onError: () => toast.error("تعذر إنشاء العرض"),
   });
 
   const remove = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("quotations").delete().eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: (id: string) => write({ data: { projectId, table: "quotations", action: "delete", id } }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["quotations", projectId] });
+      qc.invalidateQueries({ queryKey: ["finance-quotations", projectId] });
       toast.success("تم الحذف");
     },
   });
@@ -90,35 +97,42 @@ function QuotationsPage() {
       </button>
 
       <div className="space-y-2">
-        {quotes.length === 0 && (
+        {isLoading && (
+          <div className="py-8 text-center text-xs text-muted-foreground">جارٍ التحميل…</div>
+        )}
+        {!isLoading && (quotes?.length ?? 0) === 0 && (
           <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-xs text-muted-foreground">
             لا توجد عروض أسعار بعد
           </div>
         )}
-        {quotes.map((q) => {
-          const st = STATUS[q.status] ?? STATUS['draft']!;
+        {(quotes ?? []).map((q: Record<string, any>) => {
+          const st = STATUS[q["status"] as string] ?? STATUS["draft"]!;
           return (
-            <div key={q.id} className="glass-card flex items-center gap-2 rounded-2xl p-3.5">
+            <div key={q["id"]} className="glass-card flex items-center gap-2 rounded-2xl p-3.5">
               <Link
                 to="/p/$projectId/quote/$qId"
-                params={{ projectId, qId: q.id }}
+                params={{ projectId, qId: q["id"] as string }}
                 className="flex min-w-0 flex-1 items-center gap-3"
               >
                 <div className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber">
                   <FileText size={18} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-bold">{q.title}</div>
+                  <div className="truncate text-sm font-bold">{q["title"]}</div>
                   <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                    {q.quote_number ? `${q.quote_number} · ` : ""}
-                    {q.client_name || "بدون عميل"}
-                    {q.issue_date ? ` · ${q.issue_date}` : ""}
+                    {q["quote_number"] ? `${q["quote_number"]} · ` : ""}
+                    {q["client_name"] || "بدون عميل"}
+                    {q["issue_date"] ? ` · ${q["issue_date"]}` : ""}
                   </div>
                 </div>
                 <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${st.cls}`}>{st.label}</span>
                 <ChevronLeft className="shrink-0 text-muted-foreground" size={18} />
               </Link>
-              <button onClick={() => remove.mutate(q.id)} className="shrink-0 text-muted-foreground hover:text-red-400" aria-label="حذف">
+              <button
+                onClick={() => remove.mutate(q["id"] as string)}
+                className="shrink-0 text-muted-foreground hover:text-red-400"
+                aria-label="حذف"
+              >
                 <Trash2 size={16} />
               </button>
             </div>
