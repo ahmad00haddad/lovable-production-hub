@@ -33,7 +33,7 @@ function fromB64(value: string) {
   return out;
 }
 
-const ITERATIONS = 120000;
+const ITERATIONS = 100000;
 
 async function derive(pin: string, salt: Uint8Array) {
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(pin), "PBKDF2", false, [
