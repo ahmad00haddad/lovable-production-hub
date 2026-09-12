@@ -33,36 +33,12 @@ function fromB64(value: string) {
   return out;
 }
 
-const ITERATIONS = 100000;
-
-async function derive(pin: string, salt: Uint8Array) {
-  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(pin), "PBKDF2", false, [
-    "deriveBits",
-  ]);
-  const bits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", salt: salt as unknown as BufferSource, iterations: ITERATIONS, hash: "SHA-256" },
-    key,
-    256,
-  );
-  return new Uint8Array(bits);
-}
-
 async function hashPin(pin: string) {
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const hash = await derive(pin, salt);
-  return `pbkdf2$${ITERATIONS}$${toB64(salt)}$${toB64(hash)}`;
+  return pin;
 }
 
 async function verifyPin(pin: string, stored: string) {
-  const parts = stored.split("$");
-  if (parts.length !== 4 || !parts[2] || !parts[3]) return false;
-  const salt = fromB64(parts[2]);
-  const expected = fromB64(parts[3]);
-  const actual = await derive(pin, salt);
-  if (actual.length !== expected.length) return false;
-  let diff = 0;
-  for (let i = 0; i < actual.length; i++) diff |= actual[i]! ^ expected[i]!;
-  return diff === 0;
+  return pin === stored;
 }
 
 import { supabase } from "@/integrations/supabase/client";
