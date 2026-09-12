@@ -95,6 +95,15 @@ function FinanceInner({ projectId }: { projectId: string }) {
   const outOfPocket = entries
     .filter((e) => e["entry_type"] === "expense" && e["paid_by"] === "producer")
     .reduce((s, e) => s + Number(e["amount"]), 0);
+    
+  const ious = entries
+    .filter((e) => e["entry_type"] === "expense" && e["paid_by"] && e["paid_by"] !== "project" && e["paid_by"] !== "client" && e["paid_by"] !== "producer" && !e["is_paid"])
+    .reduce((acc, e) => {
+      const p = e["paid_by"];
+      acc[p] = (acc[p] || 0) + Number(e["amount"]);
+      return acc;
+    }, {} as Record<string, number>);
+
   const clientBudget = Number(project["client_budget"] ?? 0);
 
   const rateTotal = (r: Record<string, any>) =>
@@ -159,6 +168,7 @@ function FinanceInner({ projectId }: { projectId: string }) {
           incomeReceived={incomeReceived}
           receivable={receivable}
           outOfPocket={outOfPocket}
+          ious={ious}
           crewDue={crewDue}
           profit={profit}
           onSave={(values) => mutate.mutate({ projectId, table: "projects", action: "update", id: projectId, values })}
@@ -284,6 +294,7 @@ function OverviewTab(props: {
   incomeReceived: number;
   receivable: number;
   outOfPocket: number;
+  ious: Record<string, number>;
   crewDue: number;
   profit: number;
   onSave: (values: Record<string, unknown>) => void;
@@ -345,6 +356,22 @@ function OverviewTab(props: {
              <AnimatedNumber value={props.outOfPocket} currency={currency} />
           </span>
         </div>
+        {Object.keys(props.ious).length > 0 && (
+          <div className="relative z-10 mt-3 rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 text-center text-[11px]">
+            <div className="text-muted-foreground flex items-center justify-center gap-1 mb-2">
+              تسويات وذمم مالية
+              <HintTooltip text="مصاريف دفعها أشخاص من جيبهم ويجب على المشروع سدادها لهم" />
+            </div>
+            {Object.entries(props.ious).map(([person, amount]) => (
+              <div key={person} className="flex justify-between items-center border-t border-white/5 pt-1.5 mt-1.5">
+                <span className="text-muted-foreground">لصالح: <span className="font-bold text-white ml-1">{person}</span></span>
+                <span className="font-bold tabular-nums text-blue-400">
+                  <AnimatedNumber value={amount} currency={currency} />
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
         {project["client_due_date"] && (
           <div className="mt-2 text-center text-[11px] text-muted-foreground">
             دفعة العميل مستحقة بتاريخ {project["client_due_date"]}
@@ -845,7 +872,7 @@ function EntriesTab({
               </option>
             ))}
           </select>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-4 gap-2">
             {PAID_BY.map(([key, label]) => (
               <button
                 key={key}
@@ -857,7 +884,23 @@ function EntriesTab({
                 {label}
               </button>
             ))}
+            <button
+                onClick={() => setForm({ ...form, paid_by: "custom" })}
+                className={`rounded-xl py-2 text-[11px] font-bold transition ${
+                  !PAID_BY.some(([k]) => k === form.paid_by) ? "bg-amber-gradient text-black" : "border border-white/10 bg-white/5"
+                }`}
+              >
+                شخص آخر
+            </button>
           </div>
+          {!PAID_BY.some(([k]) => k === form.paid_by) && (
+            <input 
+              value={form.paid_by === 'custom' ? '' : form.paid_by} 
+              onChange={e => setForm({ ...form, paid_by: e.target.value })} 
+              placeholder="اكتب اسم الشخص الذي دفع..." 
+              className={input} 
+            />
+          )}
           <div className="grid grid-cols-2 gap-2">
             <input value={form.party} onChange={(e) => setForm({ ...form, party: e.target.value })} placeholder="الجهة / المورّد" className={input} />
             <input type="date" value={form.entry_date} onChange={(e) => setForm({ ...form, entry_date: e.target.value })} className={input} />
@@ -879,7 +922,7 @@ function EntriesTab({
                   party: form.party.trim() || null,
                   entry_date: form.entry_date || null,
                   call_sheet_id: form.call_sheet_id || null,
-                  paid_by: form.paid_by,
+                  paid_by: form.paid_by === 'custom' ? 'شخص آخر' : form.paid_by.trim(),
                   is_paid: form.is_paid,
                   currency,
                 },
@@ -909,7 +952,8 @@ function EntriesTab({
         )}
         {visible.map((e) => {
           const day = days.find((d) => d["id"] === e["call_sheet_id"]);
-          const payer = PAID_BY.find(([k]) => k === e["paid_by"])?.[1];
+          const payerDefault = PAID_BY.find(([k]) => k === e["paid_by"])?.[1];
+          const payer = payerDefault || (e["paid_by"] ? `دفعها: ${e["paid_by"]}` : null);
           return (
             <div key={e["id"]} className="glass-card flex items-center gap-3 rounded-2xl p-3.5">
               <button
