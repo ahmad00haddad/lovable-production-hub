@@ -6,10 +6,8 @@ import { toast } from "sonner";
 import { FinanceGate, useFinanceLock } from "@/components/FinanceGate";
 import { financeOverviewQuery } from "@/lib/finance-queries";
 import { financeWrite } from "@/lib/finance.functions";
-import {
-  Plus, Wallet, TrendingUp, TrendingDown, Trash2, CheckCircle2, Circle,
-  ChevronLeft, FileText, X, Lock, CalendarDays, Users, HandCoins, Save,
-} from "lucide-react";
+import { Plus, Wallet, TrendingUp, TrendingDown, Trash2, CheckCircle2, Circle, ChevronLeft, FileText, X, Lock, CalendarDays, Users, HandCoins, Save, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export const Route = createFileRoute("/p/$projectId/finance")({
   head: () => ({
@@ -243,12 +241,28 @@ function AnimatedNumber({ value, currency, className }: { value: number; currenc
   return <span className={className}>{money(display, currency)}</span>;
 }
 
-/* --------------------------- Overview --------------------------- */
+function HintTooltip({ text, iconClass }: { text: string, iconClass?: string }) {
+  return (
+    <TooltipProvider>
+      <Tooltip delayDuration={300}>
+        <TooltipTrigger asChild>
+          <Info size={12} className={`inline-block mr-1 text-muted-foreground/60 hover:text-amber transition-colors cursor-help ${iconClass ?? ''}`} />
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-[200px] text-center bg-zinc-900 border border-white/10 text-white shadow-xl shadow-black/50 z-50">
+          <p>{text}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
 
-function Stat({ label, value, tone, isAnimated = false, currency }: { label: string; value: string | number; tone?: string, isAnimated?: boolean, currency?: string }) {
+function Stat({ label, value, tone, isAnimated = false, currency, hint }: { label: string; value: string | number; tone?: string, isAnimated?: boolean, currency?: string, hint?: string }) {
   return (
     <div className="rounded-xl bg-white/5 p-3">
-      <div className="text-[11px] text-muted-foreground">{label}</div>
+      <div className="text-[11px] text-muted-foreground flex items-center">
+        {label}
+        {hint && <HintTooltip text={hint} />}
+      </div>
       <div className={`mt-0.5 text-sm font-bold tabular-nums ${tone ?? ""}`}>
         {isAnimated && typeof value === 'number' && currency ? (
           <AnimatedNumber value={value} currency={currency} />
@@ -306,7 +320,10 @@ function OverviewTab(props: {
         
         <div className="relative flex items-center justify-between z-10">
           <div>
-            <div className="text-xs text-muted-foreground">الربح المتوقع</div>
+            <div className="text-xs text-muted-foreground flex items-center">
+              الربح المتوقع
+              <HintTooltip text="الميزانية الكلية للعميل ناقص المصروف الفعلي" />
+            </div>
             <div className={`mt-1 text-2xl font-black tabular-nums ${props.profit >= 0 ? "text-amber" : "text-red-400"}`}>
               <AnimatedNumber value={props.profit} currency={currency} />
             </div>
@@ -314,13 +331,16 @@ function OverviewTab(props: {
           <Wallet size={30} className="text-amber" />
         </div>
         <div className="relative z-10 mt-4 grid grid-cols-2 gap-3">
-          <Stat label="ميزانية العميل" value={props.clientBudget} currency={currency} isAnimated tone="text-emerald-400" />
-          <Stat label="المصروف الفعلي" value={props.expense} currency={currency} isAnimated tone="text-red-400" />
-          <Stat label="مستحق من العميل" value={props.receivable} currency={currency} isAnimated tone="text-amber" />
-          <Stat label="مستحق للطاقم" value={props.crewDue} currency={currency} isAnimated tone="text-amber" />
+          <Stat label="ميزانية العميل" value={props.clientBudget} currency={currency} isAnimated tone="text-emerald-400" hint="إجمالي ما تم الاتفاق عليه مع العميل" />
+          <Stat label="المصروف الفعلي" value={props.expense} currency={currency} isAnimated tone="text-red-400" hint="مجموع كل المصاريف التي تم إنفاقها فعلياً حتى الآن" />
+          <Stat label="مستحق من العميل" value={props.receivable} currency={currency} isAnimated tone="text-amber" hint="المتبقي من ميزانية العميل ولم تقبضه بعد" />
+          <Stat label="مستحق للطاقم" value={props.crewDue} currency={currency} isAnimated tone="text-amber" hint="الأجور المتبقية التي يجب دفعها لفريق العمل" />
         </div>
         <div className="relative z-10 mt-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-center text-[11px]">
-          <span className="text-muted-foreground">دفعتُه من جيبي الخاص: </span>
+          <span className="text-muted-foreground flex items-center justify-center gap-1">
+            دفعتُه من جيبي الخاص:
+            <HintTooltip text="مبالغ دفعها المنتج من حسابه الشخصي ويجب استردادها لاحقاً" />
+          </span>
           <span className="font-bold tabular-nums text-amber">
              <AnimatedNumber value={props.outOfPocket} currency={currency} />
           </span>
