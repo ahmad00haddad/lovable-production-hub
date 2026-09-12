@@ -52,7 +52,7 @@ type Tab = "overview" | "days" | "crew" | "entries";
 function FinanceInner({ projectId }: { projectId: string }) {
   const qc = useQueryClient();
   const [tab, setTab] = useState<Tab>("overview");
-  const { data, isLoading } = useQuery(financeOverviewQuery(projectId, true));
+  const { data, isLoading, error } = useQuery({ ...financeOverviewQuery(projectId, true), retry: 1 });
   const write = useServerFn(financeWrite);
   const lock = useFinanceLock(projectId);
 
@@ -64,10 +64,22 @@ function FinanceInner({ projectId }: { projectId: string }) {
     onError: () => toast.error("تعذر الحفظ"),
   });
 
-  if (isLoading || !data) {
+  if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
         <div className="h-6 w-6 animate-spin rounded-full border-4 border-amber-500 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="flex h-64 flex-col items-center justify-center gap-3 text-center px-6">
+        <p className="text-sm text-red-400">تعذر تحميل البيانات المالية</p>
+        <p className="text-xs text-muted-foreground">{String(error)}</p>
+        <button onClick={refresh} className="rounded-xl bg-amber-gradient px-4 py-2 text-xs font-bold text-black">
+          إعادة المحاولة
+        </button>
       </div>
     );
   }

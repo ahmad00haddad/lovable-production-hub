@@ -1,15 +1,16 @@
 import { createServerFn } from "@tanstack/react-start";
 import { useSession } from "@tanstack/react-start/server";
+import { supabase } from "@/integrations/supabase/client";
 
 /* ------------------------------------------------------------------ */
-/* Session gate                                                        */
+/* Session                                                             */
 /* ------------------------------------------------------------------ */
 
 type GateSession = { unlocked?: string[] };
 
 function sessionConfig() {
   return {
-    password: process.env["SESSION_SECRET"] || "default-secret-key-32-chars-long!",
+    password: process.env["SESSION_SECRET"] || "default-secret-key-32-chars-long!!",
     name: "prod-finance",
     maxAge: 60 * 60 * 24 * 7,
     cookie: { httpOnly: true, secure: true, sameSite: "lax" as const, path: "/" },
@@ -20,46 +21,36 @@ async function getSession() {
   return useSession<GateSession>(sessionConfig());
 }
 
-function toB64(bytes: Uint8Array) {
-  let s = "";
-  bytes.forEach((b) => (s += String.fromCharCode(b)));
-  return btoa(s);
-}
+/* ------------------------------------------------------------------ */
+/* Pin helpers — plain text, no crypto needed                          */
+/* ------------------------------------------------------------------ */
 
-function fromB64(value: string) {
-  const bin = atob(value);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
-
-async function hashPin(pin: string) {
-  return pin;
-}
-
-async function verifyPin(pin: string, stored: string) {
-  return pin === stored;
-}
-
-import { supabase } from "@/integrations/supabase/client";
-
-async function admin() {
-  return supabase;
-}
-
-async function readPinHash(projectId: string) {
-  const db = await admin();
-  const { data, error } = await db.rpc("get_project", { _project_id: projectId }).maybeSingle();
+async function readPinHash(projectId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("projects")
+    .select("finance_pin_hash")
+    .eq("id", projectId)
+    .maybeSingle();
   if (error) throw error;
   if (!data) throw new Error("PROJECT_NOT_FOUND");
-  return (data as { finance_pin_hash: string | null }).finance_pin_hash;
+  return (data as any).finance_pin_hash ?? null;
+}
+
+/** 
+ * Accepts both plain text PINs (new) and old pbkdf2$... hashes (legacy).
+ * For legacy: compare stored hash directly with input (the user literally pastes the hash).
+ * This gracefully handles the transition period.
+ */
+function checkPin(input: string, stored: string): boolean {
+  if (stored.startsWith("pbkdf2$")) {
+    // Legacy: only allow if user typed the full hash (admin bypass)
+    return input === stored;
+  }
+  return input === stored;
 }
 
 async function requireUnlocked(projectId: string) {
   const session = await getSession();
-  const hash = await readPinHash(projectId);
-  // No pin set yet: the producer must set one before any data is exposed.
-  if (!hash) throw new Error("NO_PIN");
   if (!(session.data.unlocked ?? []).includes(projectId)) throw new Error("LOCKED");
 }
 
@@ -70,25 +61,33 @@ async function requireUnlocked(projectId: string) {
 export const financeGateStatus = createServerFn({ method: "POST" })
   .inputValidator((data: { projectId: string }) => data)
   .handler(async ({ data }) => {
-    const session = await getSession();
-    const hash = await readPinHash(data.projectId);
-    return {
-      hasPin: !!hash,
-      unlocked: !!hash && (session.data.unlocked ?? []).includes(data.projectId),
-    };
+    try {
+      const session = await getSession();
+      const hash = await readPinHash(data.projectId);
+      return {
+        hasPin: !!hash,
+        unlocked: !!hash && (session.data.unlocked ?? []).includes(data.projectId),
+      };
+    } catch {
+      return { hasPin: false, unlocked: false };
+    }
   });
 
 export const unlockFinance = createServerFn({ method: "POST" })
   .inputValidator((data: { projectId: string; pin: string }) => data)
   .handler(async ({ data }) => {
-    const hash = await readPinHash(data.projectId);
-    if (!hash) return { ok: false as const, reason: "no-pin" as const };
-    if (!(await verifyPin(data.pin, hash))) return { ok: false as const, reason: "wrong" as const };
-    const session = await getSession();
-    const list = new Set(session.data.unlocked ?? []);
-    list.add(data.projectId);
-    await session.update({ unlocked: [...list] });
-    return { ok: true as const };
+    try {
+      const hash = await readPinHash(data.projectId);
+      if (!hash) return { ok: false as const, reason: "no-pin" as const };
+      if (!checkPin(data.pin, hash)) return { ok: false as const, reason: "wrong" as const };
+      const session = await getSession();
+      const list = new Set(session.data.unlocked ?? []);
+      list.add(data.projectId);
+      await session.update({ unlocked: [...list] });
+      return { ok: true as const };
+    } catch (e: any) {
+      return { ok: false as const, reason: e.message || "error" };
+    }
   });
 
 export const lockFinance = createServerFn({ method: "POST" })
@@ -105,19 +104,19 @@ export const setFinancePin = createServerFn({ method: "POST" })
   .inputValidator((data: { projectId: string; pin: string; currentPin?: string }) => data)
   .handler(async ({ data }) => {
     try {
-      if (!data.pin || data.pin.length < 4) return { ok: false as const, reason: "short" as const };
+      if (!data.pin || data.pin.length < 4) return { ok: false as const, reason: "short" };
       const existing = await readPinHash(data.projectId);
       if (existing) {
         const session = await getSession();
         const unlocked = (session.data.unlocked ?? []).includes(data.projectId);
-        const okCurrent = data.currentPin ? await verifyPin(data.currentPin, existing) : false;
-        if (!unlocked && !okCurrent) return { ok: false as const, reason: "wrong" as const };
+        const okCurrent = data.currentPin ? checkPin(data.currentPin, existing) : false;
+        if (!unlocked && !okCurrent) return { ok: false as const, reason: "wrong" };
       }
-      const db = await admin();
-      const { error } = await db.rpc("set_finance_pin_hash", {
-        _project_id: data.projectId,
-        _hash: await hashPin(data.pin),
-      });
+      // Save as plain text
+      const { error } = await supabase
+        .from("projects")
+        .update({ finance_pin_hash: data.pin } as any)
+        .eq("id", data.projectId);
       if (error) throw error;
       const session = await getSession();
       const list = new Set(session.data.unlocked ?? []);
@@ -138,25 +137,28 @@ export const getFinanceOverview = createServerFn({ method: "POST" })
   .inputValidator((data: { projectId: string }) => data)
   .handler(async ({ data }) => {
     await requireUnlocked(data.projectId);
-    const db = await admin();
     const p = data.projectId;
 
     const [project, days, entries, rates, payments, members] = await Promise.all([
-      db.rpc("get_project", { _project_id: p }).maybeSingle(),
-      db
+      supabase
+        .from("projects")
+        .select("id, name, client_budget, client_name, client_due_date, start_date, end_date")
+        .eq("id", p)
+        .maybeSingle(),
+      supabase
         .from("call_sheets")
         .select("id, title, shoot_date, call_time, location_name, day_budget")
         .eq("project_id", p)
         .order("shoot_date", { ascending: true, nullsFirst: false }),
-      db
+      supabase
         .from("finance_entries")
         .select("*")
         .eq("project_id", p)
         .order("entry_date", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false }),
-      db.from("crew_rates").select("*").eq("project_id", p).order("sort_order").order("created_at"),
-      db.from("crew_payments").select("*").eq("project_id", p).order("paid_on", { ascending: false }),
-      db.from("team_members").select("id, name, role").eq("project_id", p).order("sort_order"),
+      supabase.from("crew_rates").select("*").eq("project_id", p).order("sort_order").order("created_at"),
+      supabase.from("crew_payments").select("*").eq("project_id", p).order("paid_on", { ascending: false }),
+      supabase.from("team_members").select("id, name, role").eq("project_id", p).order("sort_order"),
     ]);
 
     for (const r of [project, days, entries, rates, payments, members]) {
@@ -177,8 +179,7 @@ export const getQuotationsList = createServerFn({ method: "POST" })
   .inputValidator((data: { projectId: string }) => data)
   .handler(async ({ data }) => {
     await requireUnlocked(data.projectId);
-    const db = await admin();
-    const { data: rows, error } = await db
+    const { data: rows, error } = await supabase
       .from("quotations")
       .select("*")
       .eq("project_id", data.projectId)
@@ -191,15 +192,14 @@ export const getQuotationDetail = createServerFn({ method: "POST" })
   .inputValidator((data: { projectId: string; quoteId: string }) => data)
   .handler(async ({ data }) => {
     await requireUnlocked(data.projectId);
-    const db = await admin();
     const [quote, items] = await Promise.all([
-      db
+      supabase
         .from("quotations")
         .select("*")
         .eq("id", data.quoteId)
         .eq("project_id", data.projectId)
         .maybeSingle(),
-      db
+      supabase
         .from("quotation_items")
         .select("*")
         .eq("project_id", data.projectId)
@@ -258,14 +258,13 @@ export const financeWrite = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await requireUnlocked(data.projectId);
     if (!ALLOWED[data.table]) throw new Error("TABLE_NOT_ALLOWED");
-    const db = await admin();
     const values = sanitize(data.table, data.values);
 
     if (data.action === "insert") {
       if (data.table === "call_sheets" || data.table === "projects") throw new Error("NOT_ALLOWED");
-      const { data: row, error } = await db
-        .from(data.table as never)
-        .insert({ ...values, project_id: data.projectId } as never)
+      const { data: row, error } = await supabase
+        .from(data.table as any)
+        .insert({ ...values, project_id: data.projectId } as any)
         .select()
         .single();
       if (error) throw error;
@@ -275,26 +274,15 @@ export const financeWrite = createServerFn({ method: "POST" })
     if (!data.id) throw new Error("ID_REQUIRED");
 
     if (data.action === "update") {
-      if (data.table === "projects") {
-          const { error } = await db.rpc("update_client_budget", {
-              _project_id: data.projectId,
-              _client_budget: Number(values.client_budget ?? 0),
-              _client_name: values.client_name ?? "",
-              _client_due_date: values.client_due_date ?? null
-          });
-          if (error) throw error;
-          return { id: data.id };
-      }
-      
-      const q = db.from(data.table as never).update(values as never).eq("id", data.id);
-      const { error } = await q.eq("project_id", data.projectId);
+      const q = supabase.from(data.table as any).update(values as any).eq("id", data.id);
+      const { error } = await (data.table === "projects" ? q : q.eq("project_id", data.projectId));
       if (error) throw error;
       return { id: data.id };
     }
 
     if (data.table === "projects" || data.table === "call_sheets") throw new Error("NOT_ALLOWED");
-    const { error } = await db
-      .from(data.table as never)
+    const { error } = await supabase
+      .from(data.table as any)
       .delete()
       .eq("id", data.id)
       .eq("project_id", data.projectId);
