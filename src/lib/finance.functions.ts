@@ -27,13 +27,9 @@ async function getSession() {
 
 async function readPinHash(projectId: string): Promise<string | null> {
   const { data, error } = await supabase
-    .from("projects")
-    .select("finance_pin_hash")
-    .eq("id", projectId)
-    .maybeSingle();
+    .rpc("get_finance_pin", { _project_id: projectId });
   if (error) throw error;
-  if (!data) throw new Error("PROJECT_NOT_FOUND");
-  return (data as any).finance_pin_hash ?? null;
+  return (data as string | null) ?? null;
 }
 
 /** 
@@ -112,11 +108,9 @@ export const setFinancePin = createServerFn({ method: "POST" })
         const okCurrent = data.currentPin ? checkPin(data.currentPin, existing) : false;
         if (!unlocked && !okCurrent) return { ok: false as const, reason: "wrong" };
       }
-      // Save as plain text
+      // Save as plain text via secure RPC
       const { error } = await supabase
-        .from("projects")
-        .update({ finance_pin_hash: data.pin } as any)
-        .eq("id", data.projectId);
+        .rpc("save_finance_pin", { _project_id: data.projectId, _pin: data.pin });
       if (error) throw error;
       const session = await getSession();
       const list = new Set(session.data.unlocked ?? []);
