@@ -1,12 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useSuspenseQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { quotationQuery, quotationItemsQuery, projectQuery } from "@/lib/queries";
+import { quotationDetailQuery } from "@/lib/finance-queries";
+import { financeWrite } from "@/lib/finance.functions";
+import { FinanceGate } from "@/components/FinanceGate";
 import { toast } from "sonner";
-import {
-  Plus, Trash2, Share2, Printer, ChevronRight, FileSignature, Save,
-} from "lucide-react";
+import { Plus, Trash2, Share2, Printer, ChevronRight, FileSignature, Save } from "lucide-react";
 
 export const Route = createFileRoute("/p/$projectId/quote/$qId")({
   head: () => ({
@@ -19,23 +19,13 @@ export const Route = createFileRoute("/p/$projectId/quote/$qId")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  loader: ({ context, params }) => {
-    context.queryClient.ensureQueryData(projectQuery(params.projectId));
-    context.queryClient.ensureQueryData(quotationQuery(params.projectId, params.qId));
-    context.queryClient.ensureQueryData(quotationItemsQuery(params.projectId, params.qId));
-  },
-  pendingComponent: () => (
-    <div className="flex h-64 items-center justify-center">
-      <div className="h-6 w-6 animate-spin rounded-full border-4 border-amber-500 border-t-transparent" />
-    </div>
-  ),
   errorComponent: () => (
     <div className="p-8 text-center text-sm text-muted-foreground">تعذر تحميل العرض</div>
   ),
   notFoundComponent: () => (
     <div className="p-8 text-center text-sm text-muted-foreground">العرض غير موجود</div>
   ),
-  component: QuoteDetail,
+  component: QuotePage,
 });
 
 const STATUSES = [
@@ -45,143 +35,152 @@ const STATUSES = [
   ["rejected", "مرفوض"],
 ] as const;
 
-function QuoteDetail() {
+function QuotePage() {
   const { projectId, qId } = Route.useParams();
+  return (
+    <FinanceGate projectId={projectId}>
+      <QuoteDetail projectId={projectId} qId={qId} />
+    </FinanceGate>
+  );
+}
+
+function QuoteDetail({ projectId, qId }: { projectId: string; qId: string }) {
   const qc = useQueryClient();
-  const { data: quote } = useSuspenseQuery(quotationQuery(projectId, qId));
-  const { data: items } = useSuspenseQuery(quotationItemsQuery(projectId, qId));
-
+  const { data, isLoading } = useQuery(quotationDetailQuery(projectId, qId, true));
+  const write = useServerFn(financeWrite);
   const [newItem, setNewItem] = useState({ description: "", quantity: "1", unit_price: "" });
-  const [head, setHead] = useState({
-    title: quote?.title ?? "",
-    quote_number: quote?.quote_number ?? "",
-    client_name: quote?.client_name ?? "",
-    client_contact: quote?.client_contact ?? "",
-    issue_date: quote?.issue_date ?? "",
-    valid_until: quote?.valid_until ?? "",
-    currency: quote?.currency ?? "JOD",
-    tax_percent: String(quote?.tax_percent ?? 0),
-    discount: String(quote?.discount ?? 0),
-    notes: quote?.notes ?? "",
-    terms: quote?.terms ?? "",
-    contract_body: quote?.contract_body ?? "",
-    signature_name: quote?.signature_name ?? "",
-  });
+  const [head, setHead] = useState<Record<string, string> | null>(null);
 
+  const quote = (data?.quote ?? null) as Record<string, any> | null;
+  const items = (data?.items ?? []) as Array<Record<string, any>>;
+
+  if (isLoading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="h-6 w-6 animate-spin rounded-full border-4 border-amber-500 border-t-transparent" />
+      </div>
+    );
+  }
   if (!quote) return <div className="p-8 text-center text-sm text-muted-foreground">العرض غير موجود</div>;
 
-  const currency = head.currency || "JOD";
-  const subtotal = items.reduce((s, i) => s + Number(i.quantity) * Number(i.unit_price), 0);
-  const discount = Number(head.discount || 0);
+  const h = head ?? {
+    title: (quote["title"] as string) ?? "",
+    quote_number: (quote["quote_number"] as string) ?? "",
+    client_name: (quote["client_name"] as string) ?? "",
+    client_contact: (quote["client_contact"] as string) ?? "",
+    issue_date: (quote["issue_date"] as string) ?? "",
+    valid_until: (quote["valid_until"] as string) ?? "",
+    currency: (quote["currency"] as string) ?? "JOD",
+    tax_percent: String(quote["tax_percent"] ?? 0),
+    discount: String(quote["discount"] ?? 0),
+    notes: (quote["notes"] as string) ?? "",
+    terms: (quote["terms"] as string) ?? "",
+    contract_body: (quote["contract_body"] as string) ?? "",
+    signature_name: (quote["signature_name"] as string) ?? "",
+  };
+  const set = (patch: Record<string, string>) => setHead({ ...h, ...patch });
+
+  const currency = h["currency"] || "JOD";
+  const subtotal = items.reduce((s, i) => s + Number(i["quantity"]) * Number(i["unit_price"]), 0);
+  const discount = Number(h["discount"] || 0);
   const taxable = Math.max(subtotal - discount, 0);
-  const tax = (taxable * Number(head.tax_percent || 0)) / 100;
+  const tax = (taxable * Number(h["tax_percent"] || 0)) / 100;
   const total = taxable + tax;
 
   const fmt = (n: number) =>
     `${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
 
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["finance-quotation", projectId, qId] });
+    qc.invalidateQueries({ queryKey: ["finance-quotations", projectId] });
+  };
+
   const saveHead = useMutation({
-    mutationFn: async (patch?: { status: string }) => {
-      const { error } = await supabase
-        .from("quotations")
-        .update(
-          patch ?? {
-            title: head.title.trim() || "عرض سعر",
-            quote_number: head.quote_number.trim() || null,
-            client_name: head.client_name.trim() || null,
-            client_contact: head.client_contact.trim() || null,
-            issue_date: head.issue_date || null,
-            valid_until: head.valid_until || null,
-            currency: head.currency.trim() || "JOD",
-            tax_percent: Number(head.tax_percent || 0),
-            discount: Number(head.discount || 0),
-            notes: head.notes.trim() || null,
-            terms: head.terms.trim() || null,
-            contract_body: head.contract_body.trim() || null,
-            signature_name: head.signature_name.trim() || null,
-          }
-        )
-        .eq("id", qId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["quotation", projectId, qId] });
-      qc.invalidateQueries({ queryKey: ["quotations", projectId] });
-      toast.success("تم الحفظ");
-    },
+    mutationFn: (patch?: Record<string, unknown>) =>
+      write({
+        data: {
+          projectId, table: "quotations", action: "update", id: qId,
+          values: patch ?? {
+            title: h["title"]?.trim() || "عرض سعر",
+            quote_number: h["quote_number"]?.trim() || null,
+            client_name: h["client_name"]?.trim() || null,
+            client_contact: h["client_contact"]?.trim() || null,
+            issue_date: h["issue_date"] || null,
+            valid_until: h["valid_until"] || null,
+            currency: h["currency"]?.trim() || "JOD",
+            tax_percent: Number(h["tax_percent"] || 0),
+            discount: Number(h["discount"] || 0),
+            notes: h["notes"]?.trim() || null,
+            terms: h["terms"]?.trim() || null,
+            contract_body: h["contract_body"]?.trim() || null,
+            signature_name: h["signature_name"]?.trim() || null,
+          },
+        },
+      }),
+    onSuccess: () => { invalidate(); toast.success("تم الحفظ"); },
     onError: () => toast.error("تعذر الحفظ"),
   });
 
   const addItem = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.from("quotation_items").insert({
-        project_id: projectId,
-        quotation_id: qId,
-        description: newItem.description.trim(),
-        quantity: Number(newItem.quantity || 1),
-        unit_price: Number(newItem.unit_price || 0),
-        sort_order: items.length,
-      });
-      if (error) throw error;
-    },
+    mutationFn: () =>
+      write({
+        data: {
+          projectId, table: "quotation_items", action: "insert",
+          values: {
+            quotation_id: qId,
+            description: newItem.description.trim(),
+            quantity: Number(newItem.quantity || 1),
+            unit_price: Number(newItem.unit_price || 0),
+            sort_order: items.length,
+          },
+        },
+      }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["quotation_items", projectId, qId] });
+      qc.invalidateQueries({ queryKey: ["finance-quotation", projectId, qId] });
       setNewItem({ description: "", quantity: "1", unit_price: "" });
     },
     onError: () => toast.error("تعذر إضافة البند"),
   });
 
   const removeItem = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("quotation_items").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["quotation_items", projectId, qId] }),
+    mutationFn: (id: string) => write({ data: { projectId, table: "quotation_items", action: "delete", id } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["finance-quotation", projectId, qId] }),
   });
 
   const sign = useMutation({
-    mutationFn: async () => {
-      if (!head.signature_name.trim()) throw new Error("no-name");
-      const { error } = await supabase
-        .from("quotations")
-        .update({
-          signature_name: head.signature_name.trim(),
-          signed_at: new Date().toISOString(),
-          status: "accepted",
-        })
-        .eq("id", qId);
-      if (error) throw error;
+    mutationFn: () => {
+      if (!h["signature_name"]?.trim()) throw new Error("no-name");
+      return write({
+        data: {
+          projectId, table: "quotations", action: "update", id: qId,
+          values: {
+            signature_name: h["signature_name"]!.trim(),
+            signed_at: new Date().toISOString(),
+            status: "accepted",
+          },
+        },
+      });
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["quotation", projectId, qId] });
-      qc.invalidateQueries({ queryKey: ["quotations", projectId] });
-      toast.success("تم توقيع العقد إلكترونياً");
-    },
+    onSuccess: () => { invalidate(); toast.success("تم توقيع العقد إلكترونياً"); },
     onError: () => toast.error("اكتب اسم الموقّع أولاً"),
   });
 
-  const shareText = () => {
+  const onShare = async () => {
     const lines = [
-      head.title,
-      head.quote_number ? `رقم العرض: ${head.quote_number}` : "",
-      head.client_name ? `العميل: ${head.client_name}` : "",
+      h["title"],
+      h["quote_number"] ? `رقم العرض: ${h["quote_number"]}` : "",
+      h["client_name"] ? `العميل: ${h["client_name"]}` : "",
       "",
-      ...items.map((i) => `• ${i.description} — ${i.quantity} × ${Number(i.unit_price)} = ${fmt(Number(i.quantity) * Number(i.unit_price))}`),
+      ...items.map((i) => `• ${i["description"]} — ${i["quantity"]} × ${Number(i["unit_price"])} = ${fmt(Number(i["quantity"]) * Number(i["unit_price"]))}`),
       "",
       `المجموع: ${fmt(subtotal)}`,
       discount ? `الخصم: ${fmt(discount)}` : "",
-      Number(head.tax_percent) ? `الضريبة (${head.tax_percent}%): ${fmt(tax)}` : "",
+      Number(h["tax_percent"]) ? `الضريبة (${h["tax_percent"]}%): ${fmt(tax)}` : "",
       `الإجمالي: ${fmt(total)}`,
-      "",
-      typeof window !== "undefined" ? window.location.href : "",
     ];
-    return lines.filter(Boolean).join("\n");
-  };
-
-  const onShare = async () => {
-    const text = shareText();
+    const text = lines.filter(Boolean).join("\n");
     try {
-      if (navigator.share) await navigator.share({ title: head.title, text });
+      if (navigator.share) await navigator.share({ title: h["title"], text });
       else {
         await navigator.clipboard.writeText(text);
         toast.success("تم نسخ العرض");
@@ -202,10 +201,10 @@ function QuoteDetail() {
       </Link>
 
       <header className="mb-5">
-        <h1 className="text-2xl font-black">{head.title || "عرض سعر"}</h1>
+        <h1 className="text-2xl font-black">{h["title"] || "عرض سعر"}</h1>
         <div className="mt-1 text-xs text-muted-foreground">
-          {quote.signed_at
-            ? `موقّع من ${quote.signature_name} · ${new Date(quote.signed_at).toLocaleDateString("en-CA")}`
+          {quote["signed_at"]
+            ? `موقّع من ${quote["signature_name"]} · ${new Date(quote["signed_at"] as string).toLocaleDateString("en-CA")}`
             : "غير موقّع بعد"}
         </div>
       </header>
@@ -225,7 +224,7 @@ function QuoteDetail() {
             key={key}
             onClick={() => saveHead.mutate({ status: key })}
             className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition ${
-              quote.status === key ? "bg-amber-gradient text-black" : "border border-white/10 bg-white/5 text-muted-foreground"
+              quote["status"] === key ? "bg-amber-gradient text-black" : "border border-white/10 bg-white/5 text-muted-foreground"
             }`}
           >
             {label}
@@ -235,34 +234,34 @@ function QuoteDetail() {
 
       <section className="glass-card mb-4 space-y-2.5 rounded-2xl p-4">
         <div className="text-sm font-bold">بيانات العرض</div>
-        <input value={head.title} onChange={(e) => setHead({ ...head, title: e.target.value })} placeholder="عنوان العرض" className={input} />
+        <input value={h["title"]} onChange={(e) => set({ title: e.target.value })} placeholder="عنوان العرض" className={input} />
         <div className="grid grid-cols-2 gap-2">
-          <input value={head.quote_number} onChange={(e) => setHead({ ...head, quote_number: e.target.value })} placeholder="رقم العرض" className={input} />
-          <input value={head.currency} onChange={(e) => setHead({ ...head, currency: e.target.value })} placeholder="العملة" className={input} />
+          <input value={h["quote_number"]} onChange={(e) => set({ quote_number: e.target.value })} placeholder="رقم العرض" className={input} />
+          <input value={h["currency"]} onChange={(e) => set({ currency: e.target.value })} placeholder="العملة" className={input} />
         </div>
-        <input value={head.client_name} onChange={(e) => setHead({ ...head, client_name: e.target.value })} placeholder="اسم العميل" className={input} />
-        <input value={head.client_contact} onChange={(e) => setHead({ ...head, client_contact: e.target.value })} placeholder="هاتف أو بريد العميل" className={input} />
+        <input value={h["client_name"]} onChange={(e) => set({ client_name: e.target.value })} placeholder="اسم العميل" className={input} />
+        <input value={h["client_contact"]} onChange={(e) => set({ client_contact: e.target.value })} placeholder="هاتف أو بريد العميل" className={input} />
         <div className="grid grid-cols-2 gap-2">
           <label className="text-[10px] text-muted-foreground">
             تاريخ الإصدار
-            <input type="date" value={head.issue_date} onChange={(e) => setHead({ ...head, issue_date: e.target.value })} className={input} />
+            <input type="date" value={h["issue_date"]} onChange={(e) => set({ issue_date: e.target.value })} className={input} />
           </label>
           <label className="text-[10px] text-muted-foreground">
             صالح حتى
-            <input type="date" value={head.valid_until} onChange={(e) => setHead({ ...head, valid_until: e.target.value })} className={input} />
+            <input type="date" value={h["valid_until"]} onChange={(e) => set({ valid_until: e.target.value })} className={input} />
           </label>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <label className="text-[10px] text-muted-foreground">
             الضريبة %
-            <input value={head.tax_percent} onChange={(e) => setHead({ ...head, tax_percent: e.target.value })} inputMode="decimal" className={input} />
+            <input value={h["tax_percent"]} onChange={(e) => set({ tax_percent: e.target.value })} inputMode="decimal" className={input} />
           </label>
           <label className="text-[10px] text-muted-foreground">
             الخصم
-            <input value={head.discount} onChange={(e) => setHead({ ...head, discount: e.target.value })} inputMode="decimal" className={input} />
+            <input value={h["discount"]} onChange={(e) => set({ discount: e.target.value })} inputMode="decimal" className={input} />
           </label>
         </div>
-        <textarea value={head.notes} onChange={(e) => setHead({ ...head, notes: e.target.value })} placeholder="ملاحظات" rows={2} className={input} />
+        <textarea value={h["notes"]} onChange={(e) => set({ notes: e.target.value })} placeholder="ملاحظات" rows={2} className={input} />
         <button
           onClick={() => saveHead.mutate(undefined)}
           disabled={saveHead.isPending}
@@ -277,17 +276,17 @@ function QuoteDetail() {
         <div className="space-y-2">
           {items.length === 0 && <div className="py-4 text-center text-xs text-muted-foreground">لا توجد بنود بعد</div>}
           {items.map((i) => (
-            <div key={i.id} className="flex items-center gap-2 rounded-xl bg-white/5 p-3">
+            <div key={i["id"]} className="flex items-center gap-2 rounded-xl bg-white/5 p-3">
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-bold">{i.description}</div>
+                <div className="truncate text-sm font-bold">{i["description"]}</div>
                 <div className="text-[11px] tabular-nums text-muted-foreground">
-                  {Number(i.quantity)} × {Number(i.unit_price).toLocaleString("en-US")}
+                  {Number(i["quantity"])} × {Number(i["unit_price"]).toLocaleString("en-US")}
                 </div>
               </div>
               <div className="shrink-0 text-sm font-black tabular-nums text-amber">
-                {fmt(Number(i.quantity) * Number(i.unit_price))}
+                {fmt(Number(i["quantity"]) * Number(i["unit_price"]))}
               </div>
-              <button onClick={() => removeItem.mutate(i.id)} className="shrink-0 text-muted-foreground hover:text-red-400" aria-label="حذف البند">
+              <button onClick={() => removeItem.mutate(i["id"] as string)} className="shrink-0 text-muted-foreground hover:text-red-400" aria-label="حذف البند">
                 <Trash2 size={15} />
               </button>
             </div>
@@ -312,7 +311,7 @@ function QuoteDetail() {
         <div className="mt-4 space-y-1.5 border-t border-white/10 pt-3 text-xs">
           <div className="flex justify-between"><span className="text-muted-foreground">المجموع</span><span className="tabular-nums">{fmt(subtotal)}</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">الخصم</span><span className="tabular-nums">{fmt(discount)}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">الضريبة ({Number(head.tax_percent || 0)}%)</span><span className="tabular-nums">{fmt(tax)}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">الضريبة ({Number(h["tax_percent"] || 0)}%)</span><span className="tabular-nums">{fmt(tax)}</span></div>
           <div className="flex justify-between border-t border-white/10 pt-2 text-base font-black">
             <span>الإجمالي</span><span className="tabular-nums text-amber">{fmt(total)}</span>
           </div>
@@ -324,30 +323,27 @@ function QuoteDetail() {
           <FileSignature size={16} className="text-amber" /> العقد والتوقيع
         </div>
         <textarea
-          value={head.terms}
-          onChange={(e) => setHead({ ...head, terms: e.target.value })}
+          value={h["terms"]}
+          onChange={(e) => set({ terms: e.target.value })}
           placeholder="الشروط والأحكام (طريقة الدفع، مدة التسليم، حقوق الاستخدام...)"
           rows={3}
           className={input}
         />
         <textarea
-          value={head.contract_body}
-          onChange={(e) => setHead({ ...head, contract_body: e.target.value })}
+          value={h["contract_body"]}
+          onChange={(e) => set({ contract_body: e.target.value })}
           placeholder="نص العقد الكامل"
           rows={5}
           className={input}
         />
         <input
-          value={head.signature_name}
-          onChange={(e) => setHead({ ...head, signature_name: e.target.value })}
+          value={h["signature_name"]}
+          onChange={(e) => set({ signature_name: e.target.value })}
           placeholder="اسم الموقّع"
           className={input}
         />
         <div className="flex gap-2">
-          <button
-            onClick={() => saveHead.mutate(undefined)}
-            className="flex-1 rounded-xl bg-white/10 py-2 text-xs font-bold"
-          >
+          <button onClick={() => saveHead.mutate(undefined)} className="flex-1 rounded-xl bg-white/10 py-2 text-xs font-bold">
             حفظ نص العقد
           </button>
           <button
