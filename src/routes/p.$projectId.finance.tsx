@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { FinanceGate, useFinanceLock } from "@/components/FinanceGate";
 import { financeOverviewQuery } from "@/lib/finance-queries";
@@ -207,13 +207,55 @@ function FinanceInner({ projectId }: { projectId: string }) {
   );
 }
 
+/* --------------------------- UI Helpers --------------------------- */
+
+function AnimatedNumber({ value, currency, className }: { value: number; currency: string; className?: string }) {
+  const [display, setDisplay] = useState(value);
+  const prevValue = useRef(value);
+  
+  useEffect(() => {
+    if (prevValue.current === value) return;
+    
+    let start = prevValue.current;
+    const end = value;
+    const duration = 800; // ms
+    const startTime = performance.now();
+    
+    const animate = (currTime: number) => {
+      const elapsed = currTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // easeOutExpo
+      const ease = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+      
+      setDisplay(start + (end - start) * ease);
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        setDisplay(end);
+        prevValue.current = end;
+      }
+    };
+    requestAnimationFrame(animate);
+  }, [value]);
+  
+  return <span className={className}>{money(display, currency)}</span>;
+}
+
 /* --------------------------- Overview --------------------------- */
 
-function Stat({ label, value, tone }: { label: string; value: string; tone?: string }) {
+function Stat({ label, value, tone, isAnimated = false, currency }: { label: string; value: string | number; tone?: string, isAnimated?: boolean, currency?: string }) {
   return (
     <div className="rounded-xl bg-white/5 p-3">
       <div className="text-[11px] text-muted-foreground">{label}</div>
-      <div className={`mt-0.5 text-sm font-bold tabular-nums ${tone ?? ""}`}>{value}</div>
+      <div className={`mt-0.5 text-sm font-bold tabular-nums ${tone ?? ""}`}>
+        {isAnimated && typeof value === 'number' && currency ? (
+          <AnimatedNumber value={value} currency={currency} />
+        ) : (
+          value
+        )}
+      </div>
     </div>
   );
 }
@@ -238,28 +280,50 @@ function OverviewTab(props: {
     client_name: (project["client_name"] as string) ?? "",
     client_due_date: (project["client_due_date"] as string) ?? "",
   });
+  
+  // 1. Color-Shifting Aura
+  const expenseRatio = props.clientBudget > 0 ? props.expense / props.clientBudget : 0;
+  let auraColor = "from-emerald-500/10 via-transparent to-transparent";
+  if (expenseRatio > 0.9) auraColor = "from-red-500/20 via-transparent to-transparent";
+  else if (expenseRatio > 0.7) auraColor = "from-amber-500/20 via-transparent to-transparent";
+
+  const [isSaved, setIsSaved] = useState(false);
+  const handleSave = () => {
+    props.onSave({
+      client_budget: Number(form.client_budget || 0),
+      client_name: form.client_name.trim() || null,
+      client_due_date: form.client_due_date || null,
+    });
+    setIsSaved(true);
+    if (navigator.vibrate) navigator.vibrate([10, 30, 10]);
+    setTimeout(() => setIsSaved(false), 2000);
+  };
 
   return (
     <div className="space-y-4">
-      <section className="glass-card rounded-2xl p-5">
-        <div className="flex items-center justify-between">
+      <section className="glass-card relative overflow-hidden rounded-2xl p-5">
+        <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br transition-colors duration-1000 ${auraColor}`} />
+        
+        <div className="relative flex items-center justify-between z-10">
           <div>
             <div className="text-xs text-muted-foreground">الربح المتوقع</div>
             <div className={`mt-1 text-2xl font-black tabular-nums ${props.profit >= 0 ? "text-amber" : "text-red-400"}`}>
-              {money(props.profit, currency)}
+              <AnimatedNumber value={props.profit} currency={currency} />
             </div>
           </div>
           <Wallet size={30} className="text-amber" />
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <Stat label="ميزانية العميل" value={money(props.clientBudget, currency)} tone="text-emerald-400" />
-          <Stat label="المصروف الفعلي" value={money(props.expense, currency)} tone="text-red-400" />
-          <Stat label="مستحق من العميل" value={money(props.receivable, currency)} tone="text-amber" />
-          <Stat label="مستحق للطاقم" value={money(props.crewDue, currency)} tone="text-amber" />
+        <div className="relative z-10 mt-4 grid grid-cols-2 gap-3">
+          <Stat label="ميزانية العميل" value={props.clientBudget} currency={currency} isAnimated tone="text-emerald-400" />
+          <Stat label="المصروف الفعلي" value={props.expense} currency={currency} isAnimated tone="text-red-400" />
+          <Stat label="مستحق من العميل" value={props.receivable} currency={currency} isAnimated tone="text-amber" />
+          <Stat label="مستحق للطاقم" value={props.crewDue} currency={currency} isAnimated tone="text-amber" />
         </div>
-        <div className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-center text-[11px]">
+        <div className="relative z-10 mt-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-center text-[11px]">
           <span className="text-muted-foreground">دفعتُه من جيبي الخاص: </span>
-          <span className="font-bold tabular-nums text-amber">{money(props.outOfPocket, currency)}</span>
+          <span className="font-bold tabular-nums text-amber">
+             <AnimatedNumber value={props.outOfPocket} currency={currency} />
+          </span>
         </div>
         {project["client_due_date"] && (
           <div className="mt-2 text-center text-[11px] text-muted-foreground">
@@ -297,16 +361,18 @@ function OverviewTab(props: {
           </label>
         </div>
         <button
-          onClick={() =>
-            props.onSave({
-              client_budget: Number(form.client_budget || 0),
-              client_name: form.client_name.trim() || null,
-              client_due_date: form.client_due_date || null,
-            })
-          }
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/10 py-2 text-xs font-bold"
+          onClick={handleSave}
+          className="relative overflow-hidden flex w-full items-center justify-center gap-2 rounded-xl bg-white/10 py-2 text-xs font-bold active:scale-95 transition-transform"
         >
-          <Save size={14} /> حفظ
+          <span className={`flex items-center gap-2 transition-opacity duration-300 ${isSaved ? 'opacity-0' : 'opacity-100'}`}>
+            <Save size={14} /> حفظ
+          </span>
+          
+          {isSaved && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="animate-in zoom-in spin-in-12 text-emerald-400 font-black text-sm rotate-[-10deg] border border-emerald-400 rounded px-2">تم الحفظ</div>
+            </div>
+          )}
         </button>
       </section>
 
@@ -422,6 +488,39 @@ function DaysTab({
 
 /* ----------------------------- Crew ----------------------------- */
 
+function SwipeToPay({ onSwipe, disabled }: { onSwipe: () => void, disabled: boolean }) {
+  const [val, setVal] = useState(0);
+  const handleEnd = () => {
+     if (disabled) return;
+     if (val > 80) {
+        setVal(100);
+        if (navigator.vibrate) navigator.vibrate([20, 50, 20]);
+        setTimeout(() => {
+          onSwipe();
+          setVal(0);
+        }, 300);
+     } else {
+        setVal(0);
+     }
+  };
+  
+  if (disabled) return null;
+
+  return (
+    <div className="relative h-10 rounded-xl bg-white/5 overflow-hidden flex items-center justify-center mt-2 group border border-white/5">
+       <div className="absolute inset-y-0 right-0 bg-emerald-500/20 transition-all duration-75" style={{ width: `${val}%` }} />
+       <input type="range" min="0" max="100" value={val} 
+          onChange={e => setVal(Number(e.target.value))} 
+          onMouseUp={handleEnd} onTouchEnd={handleEnd}
+          className="absolute inset-0 opacity-0 w-full cursor-grab z-10 dir-ltr" dir="ltr" />
+       <div className="absolute right-0 top-0 bottom-0 pointer-events-none transition-all duration-75 flex items-center justify-center w-12 bg-emerald-500/80 rounded-xl" style={{ transform: `translateX(-${val * 2.5}px)` }}>
+          <HandCoins size={14} className="text-white" />
+       </div>
+       <div className="text-[11px] font-bold text-muted-foreground pointer-events-none pr-6">اسحب لدفع المتبقي</div>
+    </div>
+  );
+}
+
 function CrewTab({
   projectId, rates, members, currency, rateTotal, paidFor, crewTotal, crewPaid, crewDue, mutate,
 }: {
@@ -429,7 +528,7 @@ function CrewTab({
   rates: Array<Record<string, any>>;
   members: Array<Record<string, any>>;
   currency: string;
-  rateTotal: (r: Record<string, any>) => number;
+  rateTotal: (r: any) => number;
   paidFor: (id: string) => number;
   crewTotal: number;
   crewPaid: number;
@@ -448,15 +547,21 @@ function CrewTab({
       <section className="glass-card grid grid-cols-3 gap-2 rounded-2xl p-4 text-center">
         <div>
           <div className="text-[10px] text-muted-foreground">إجمالي الطاقم</div>
-          <div className="text-sm font-bold tabular-nums">{crewTotal.toLocaleString("en-US")}</div>
+          <div className="text-sm font-bold tabular-nums">
+             <AnimatedNumber value={crewTotal} currency={currency} />
+          </div>
         </div>
         <div>
           <div className="text-[10px] text-muted-foreground">المدفوع</div>
-          <div className="text-sm font-bold tabular-nums text-emerald-400">{crewPaid.toLocaleString("en-US")}</div>
+          <div className="text-sm font-bold tabular-nums text-emerald-400">
+             <AnimatedNumber value={crewPaid} currency={currency} />
+          </div>
         </div>
         <div>
           <div className="text-[10px] text-muted-foreground">المتبقي</div>
-          <div className="text-sm font-bold tabular-nums text-amber">{crewDue.toLocaleString("en-US")}</div>
+          <div className="text-sm font-bold tabular-nums text-amber">
+             <AnimatedNumber value={crewDue} currency={currency} />
+          </div>
         </div>
       </section>
 
@@ -553,7 +658,7 @@ function CrewTab({
         const paid = paidFor(r["id"] as string);
         const due = total - paid;
         return (
-          <div key={r["id"]} className="glass-card rounded-2xl p-4">
+          <div key={r["id"]} className="glass-card rounded-2xl p-4 transition-all duration-500 hover:scale-[1.01]">
             <div className="flex items-center gap-3">
               <div className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber">
                 <Users size={18} />
@@ -575,46 +680,59 @@ function CrewTab({
             <div className="mt-3 grid grid-cols-3 gap-2 text-center">
               <div className="rounded-xl bg-white/5 p-2">
                 <div className="text-[10px] text-muted-foreground">الإجمالي</div>
-                <div className="text-xs font-bold tabular-nums">{total.toLocaleString("en-US")}</div>
+                <div className="text-xs font-bold tabular-nums">
+                   <AnimatedNumber value={total} currency={currency} />
+                </div>
               </div>
               <div className="rounded-xl bg-white/5 p-2">
                 <div className="text-[10px] text-muted-foreground">المدفوع</div>
-                <div className="text-xs font-bold tabular-nums text-emerald-400">{paid.toLocaleString("en-US")}</div>
+                <div className="text-xs font-bold tabular-nums text-emerald-400">
+                   <AnimatedNumber value={paid} currency={currency} />
+                </div>
               </div>
               <div className="rounded-xl bg-white/5 p-2">
                 <div className="text-[10px] text-muted-foreground">المتبقي</div>
                 <div className={`text-xs font-bold tabular-nums ${due > 0 ? "text-amber" : "text-emerald-400"}`}>
-                  {due.toLocaleString("en-US")}
+                  <AnimatedNumber value={due} currency={currency} />
                 </div>
               </div>
             </div>
             {payFor === r["id"] ? (
-              <div className="mt-3 flex gap-2">
-                <input
-                  value={payAmount}
-                  onChange={(e) => setPayAmount(e.target.value)}
-                  inputMode="decimal"
-                  placeholder={`المبلغ المدفوع (${currency})`}
-                  className={input}
-                />
-                <button
-                  onClick={() => {
-                    mutate({
-                      projectId, table: "crew_payments", action: "insert",
-                      values: { crew_rate_id: r["id"], amount: Number(payAmount || 0) },
-                    });
-                    setPayAmount("");
-                    setPayFor(null);
-                  }}
-                  className="shrink-0 rounded-xl bg-amber-gradient px-4 text-xs font-bold text-black"
-                >
-                  حفظ
-                </button>
+              <div className="mt-3">
+                <div className="flex gap-2">
+                  <input
+                    value={payAmount}
+                    onChange={(e) => setPayAmount(e.target.value)}
+                    inputMode="decimal"
+                    placeholder={`المبلغ (${currency})`}
+                    className={input}
+                  />
+                  <button
+                    onClick={() => {
+                      mutate({
+                        projectId, table: "crew_payments", action: "insert",
+                        values: { crew_rate_id: r["id"], amount: Number(payAmount || 0) },
+                      });
+                      setPayAmount("");
+                      setPayFor(null);
+                    }}
+                    className="shrink-0 rounded-xl bg-amber-gradient px-4 text-xs font-bold text-black"
+                  >
+                    حفظ
+                  </button>
+                </div>
+                <SwipeToPay disabled={due <= 0} onSwipe={() => {
+                  mutate({
+                    projectId, table: "crew_payments", action: "insert",
+                    values: { crew_rate_id: r["id"], amount: due },
+                  });
+                  setPayFor(null);
+                }} />
               </div>
             ) : (
               <button
                 onClick={() => { setPayFor(r["id"] as string); setPayAmount(String(due > 0 ? due : "")); }}
-                className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 py-2 text-[11px] font-bold text-muted-foreground"
+                className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 py-2 text-[11px] font-bold text-muted-foreground transition hover:bg-white/10"
               >
                 <HandCoins size={13} /> تسجيل دفعة
               </button>
