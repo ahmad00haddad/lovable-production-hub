@@ -65,18 +65,15 @@ async function verifyPin(pin: string, stored: string) {
   return diff === 0;
 }
 
+import { supabase } from "@/integrations/supabase/client";
+
 async function admin() {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  return supabaseAdmin;
+  return supabase;
 }
 
 async function readPinHash(projectId: string) {
   const db = await admin();
-  const { data, error } = await db
-    .from("projects")
-    .select("finance_pin_hash")
-    .eq("id", projectId)
-    .maybeSingle();
+  const { data, error } = await db.rpc("get_project", { _project_id: projectId }).maybeSingle();
   if (error) throw error;
   if (!data) throw new Error("PROJECT_NOT_FOUND");
   return (data as { finance_pin_hash: string | null }).finance_pin_hash;
@@ -141,10 +138,10 @@ export const setFinancePin = createServerFn({ method: "POST" })
         if (!unlocked && !okCurrent) return { ok: false as const, reason: "wrong" as const };
       }
       const db = await admin();
-      const { error } = await db
-        .from("projects")
-        .update({ finance_pin_hash: await hashPin(data.pin) } as never)
-        .eq("id", data.projectId);
+      const { error } = await db.rpc("set_finance_pin_hash", {
+        _project_id: data.projectId,
+        _hash: await hashPin(data.pin),
+      });
       if (error) throw error;
       const session = await getSession();
       const list = new Set(session.data.unlocked ?? []);
@@ -169,11 +166,7 @@ export const getFinanceOverview = createServerFn({ method: "POST" })
     const p = data.projectId;
 
     const [project, days, entries, rates, payments, members] = await Promise.all([
-      db
-        .from("projects")
-        .select("id, name, client_budget, client_name, client_due_date, start_date, end_date")
-        .eq("id", p)
-        .maybeSingle(),
+      db.rpc("get_project", { _project_id: p }).maybeSingle(),
       db
         .from("call_sheets")
         .select("id, title, shoot_date, call_time, location_name, day_budget")
@@ -306,8 +299,19 @@ export const financeWrite = createServerFn({ method: "POST" })
     if (!data.id) throw new Error("ID_REQUIRED");
 
     if (data.action === "update") {
+      if (data.table === "projects") {
+          const { error } = await db.rpc("update_client_budget", {
+              _project_id: data.projectId,
+              _client_budget: Number(values.client_budget ?? 0),
+              _client_name: values.client_name ?? "",
+              _client_due_date: values.client_due_date ?? null
+          });
+          if (error) throw error;
+          return { id: data.id };
+      }
+      
       const q = db.from(data.table as never).update(values as never).eq("id", data.id);
-      const { error } = await (data.table === "projects" ? q : q.eq("project_id", data.projectId));
+      const { error } = await q.eq("project_id", data.projectId);
       if (error) throw error;
       return { id: data.id };
     }
