@@ -1,16 +1,30 @@
 import { useState, type ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { Lock, ShieldCheck, KeyRound } from "lucide-react";
 import { toast } from "sonner";
-import { financeGateQuery } from "@/lib/finance-queries";
-import { unlockFinance, setFinancePin, lockFinance } from "@/lib/finance.functions";
+import { supabase } from "@/integrations/supabase/client";
+
+/* ------------------------------------------------------------------ */
+/* Helpers                                                             */
+/* ------------------------------------------------------------------ */
+
+const STORAGE_KEY = (pid: string) => `finance-unlocked-${pid}`;
+
+function isUnlocked(projectId: string): boolean {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem(STORAGE_KEY(projectId)) === "true";
+}
+
+/* ------------------------------------------------------------------ */
+/* useFinanceLock — call lock.mutate() to re-lock                     */
+/* ------------------------------------------------------------------ */
 
 export function useFinanceLock(projectId: string) {
   const qc = useQueryClient();
-  const lock = useServerFn(lockFinance);
   return useMutation({
-    mutationFn: () => lock({ data: { projectId } }),
+    mutationFn: async () => {
+      localStorage.removeItem(STORAGE_KEY(projectId));
+    },
     onSuccess: () => {
       qc.removeQueries({ queryKey: ["finance-overview", projectId] });
       qc.removeQueries({ queryKey: ["finance-quotations", projectId] });
@@ -20,36 +34,77 @@ export function useFinanceLock(projectId: string) {
   });
 }
 
+/* ------------------------------------------------------------------ */
+/* FinanceGate — fully client-side PIN gate                           */
+/* ------------------------------------------------------------------ */
+
 export function FinanceGate({ projectId, children }: { projectId: string; children: ReactNode }) {
   const qc = useQueryClient();
-  const { data: gate, isLoading } = useQuery(financeGateQuery(projectId));
-  const unlockFn = useServerFn(unlockFinance);
-  const setPinFn = useServerFn(setFinancePin);
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
 
+  // Check if PIN exists in finance_pins table
+  const { data: gate, isLoading, error: gateError } = useQuery({
+    queryKey: ["finance-gate", projectId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("finance_pins" as any)
+        .select("pin")
+        .eq("project_id", projectId)
+        .maybeSingle();
+      if (error) throw error;
+      return {
+        hasPin: !!data,
+        storedPin: (data as any)?.pin as string | null,
+        unlocked: !!data && isUnlocked(projectId),
+      };
+    },
+    staleTime: 0,
+    retry: 1,
+  });
+
+  // Unlock: compare PIN client-side
   const unlock = useMutation({
-    mutationFn: () => unlockFn({ data: { projectId, pin } }),
-    onSuccess: (res) => {
-      if (!res.ok) return toast.error("كلمة السر غير صحيحة");
+    mutationFn: async () => {
+      if (!gate?.storedPin) throw new Error("no-pin");
+      if (pin !== gate.storedPin) throw new Error("wrong");
+      localStorage.setItem(STORAGE_KEY(projectId), "true");
+    },
+    onSuccess: () => {
       setPin("");
       qc.invalidateQueries({ queryKey: ["finance-gate", projectId] });
     },
-    onError: () => toast.error("تعذر الفتح"),
+    onError: (e: Error) => {
+      toast.error(e.message === "wrong" ? "كلمة السر غير صحيحة" : "خطأ");
+    },
   });
 
+  // Create new PIN
   const createPin = useMutation({
-    mutationFn: () => setPinFn({ data: { projectId, pin } }),
-    onSuccess: (res: any) => {
-      if (!res.ok) return toast.error(res.reason === "short" ? "كلمة السر قصيرة جداً (4 خانات على الأقل)" : `خطأ: ${res.reason}`);
+    mutationFn: async () => {
+      if (pin.length < 4) throw new Error("short");
+      if (pin !== confirmPin) throw new Error("mismatch");
+      // Upsert into finance_pins
+      const { error } = await supabase
+        .from("finance_pins" as any)
+        .upsert({ project_id: projectId, pin } as any, { onConflict: "project_id" });
+      if (error) throw error;
+      localStorage.setItem(STORAGE_KEY(projectId), "true");
+    },
+    onSuccess: () => {
       setPin("");
       setConfirmPin("");
       qc.invalidateQueries({ queryKey: ["finance-gate", projectId] });
       toast.success("تم تفعيل الحماية");
     },
-    onError: (err: any) => toast.error(`تعذر الحفظ: ${err.message || "خطأ غير معروف"}`),
+    onError: (e: Error) => {
+      if (e.message === "short") toast.error("4 خانات على الأقل");
+      else if (e.message === "mismatch") toast.error("كلمتا السر غير متطابقتين");
+      else toast.error(`خطأ: ${e.message}`);
+    },
   });
 
+  // Loading
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -58,9 +113,25 @@ export function FinanceGate({ projectId, children }: { projectId: string; childr
     );
   }
 
+  // Error (e.g. table doesn't exist yet)
+  if (gateError) {
+    return (
+      <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-6 pb-28 pt-8">
+        <div className="glass-card rounded-3xl p-7 text-center">
+          <p className="text-sm text-red-400 mb-3">خطأ في تحميل القسم المالي</p>
+          <p className="text-xs text-muted-foreground mb-4 direction-ltr" dir="ltr">{String(gateError)}</p>
+          <p className="text-xs text-muted-foreground">
+            يرجى التأكد من تشغيل SQL الإعداد في Supabase SQL Editor
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Unlocked → show children
   if (gate?.unlocked) return <>{children}</>;
 
-  const input =
+  const inputClass =
     "w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-center text-lg tracking-[0.4em] outline-none focus:border-amber-500/50";
 
   return (
@@ -84,7 +155,7 @@ export function FinanceGate({ projectId, children }: { projectId: string; childr
               type="password"
               inputMode="numeric"
               placeholder="••••"
-              className={`${input} mt-5`}
+              className={`${inputClass} mt-5`}
             />
             <button
               onClick={() => pin && unlock.mutate()}
@@ -107,7 +178,7 @@ export function FinanceGate({ projectId, children }: { projectId: string; childr
               type="password"
               inputMode="numeric"
               placeholder="كلمة السر"
-              className={`${input} mt-5`}
+              className={`${inputClass} mt-5`}
             />
             <input
               value={confirmPin}
@@ -115,16 +186,10 @@ export function FinanceGate({ projectId, children }: { projectId: string; childr
               type="password"
               inputMode="numeric"
               placeholder="تأكيد كلمة السر"
-              className={`${input} mt-2`}
+              className={`${inputClass} mt-2`}
             />
             <button
-              onClick={() =>
-                pin.length < 4
-                  ? toast.error("4 خانات على الأقل")
-                  : pin !== confirmPin
-                    ? toast.error("كلمتا السر غير متطابقتين")
-                    : createPin.mutate()
-              }
+              onClick={() => createPin.mutate()}
               disabled={createPin.isPending}
               className="mt-3 w-full rounded-xl bg-amber-gradient py-3 text-sm font-bold text-black disabled:opacity-50"
             >

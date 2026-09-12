@@ -1,17 +1,9 @@
 import { queryOptions } from "@tanstack/react-query";
 import {
-  financeGateStatus,
   getFinanceOverview,
   getQuotationsList,
   getQuotationDetail,
 } from "@/lib/finance.functions";
-
-export const financeGateQuery = (projectId: string) =>
-  queryOptions({
-    queryKey: ["finance-gate", projectId],
-    queryFn: () => financeGateStatus({ data: { projectId } }),
-    staleTime: 0,
-  });
 
 export const financeOverviewQuery = (projectId: string, enabled: boolean) =>
   queryOptions({
