@@ -9,7 +9,7 @@ type GateSession = { unlocked?: string[] };
 
 function sessionConfig() {
   return {
-    password: process.env["SESSION_SECRET"]!,
+    password: process.env["SESSION_SECRET"] || "default-secret-key-32-chars-long!",
     name: "prod-finance",
     maxAge: 60 * 60 * 24 * 7,
     cookie: { httpOnly: true, secure: true, sameSite: "lax" as const, path: "/" },
