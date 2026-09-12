@@ -40,14 +40,14 @@ export function FinanceGate({ projectId, children }: { projectId: string; childr
 
   const createPin = useMutation({
     mutationFn: () => setPinFn({ data: { projectId, pin } }),
-    onSuccess: (res) => {
-      if (!res.ok) return toast.error("كلمة السر قصيرة جداً (4 خانات على الأقل)");
+    onSuccess: (res: any) => {
+      if (!res.ok) return toast.error(res.reason === "short" ? "كلمة السر قصيرة جداً (4 خانات على الأقل)" : `خطأ: ${res.reason}`);
       setPin("");
       setConfirmPin("");
       qc.invalidateQueries({ queryKey: ["finance-gate", projectId] });
       toast.success("تم تفعيل الحماية");
     },
-    onError: () => toast.error("تعذر الحفظ"),
+    onError: (err: any) => toast.error(`تعذر الحفظ: ${err.message || "خطأ غير معروف"}`),
   });
 
   if (isLoading) {

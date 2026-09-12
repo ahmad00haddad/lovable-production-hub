@@ -131,25 +131,30 @@ export const lockFinance = createServerFn({ method: "POST" })
 export const setFinancePin = createServerFn({ method: "POST" })
   .inputValidator((data: { projectId: string; pin: string; currentPin?: string }) => data)
   .handler(async ({ data }) => {
-    if (!data.pin || data.pin.length < 4) return { ok: false as const, reason: "short" as const };
-    const existing = await readPinHash(data.projectId);
-    if (existing) {
+    try {
+      if (!data.pin || data.pin.length < 4) return { ok: false as const, reason: "short" as const };
+      const existing = await readPinHash(data.projectId);
+      if (existing) {
+        const session = await getSession();
+        const unlocked = (session.data.unlocked ?? []).includes(data.projectId);
+        const okCurrent = data.currentPin ? await verifyPin(data.currentPin, existing) : false;
+        if (!unlocked && !okCurrent) return { ok: false as const, reason: "wrong" as const };
+      }
+      const db = await admin();
+      const { error } = await db
+        .from("projects")
+        .update({ finance_pin_hash: await hashPin(data.pin) } as never)
+        .eq("id", data.projectId);
+      if (error) throw error;
       const session = await getSession();
-      const unlocked = (session.data.unlocked ?? []).includes(data.projectId);
-      const okCurrent = data.currentPin ? await verifyPin(data.currentPin, existing) : false;
-      if (!unlocked && !okCurrent) return { ok: false as const, reason: "wrong" as const };
+      const list = new Set(session.data.unlocked ?? []);
+      list.add(data.projectId);
+      await session.update({ unlocked: [...list] });
+      return { ok: true as const };
+    } catch (e: any) {
+      console.error("setFinancePin error:", e);
+      return { ok: false as const, reason: e.message || String(e) };
     }
-    const db = await admin();
-    const { error } = await db
-      .from("projects")
-      .update({ finance_pin_hash: await hashPin(data.pin) } as never)
-      .eq("id", data.projectId);
-    if (error) throw error;
-    const session = await getSession();
-    const list = new Set(session.data.unlocked ?? []);
-    list.add(data.projectId);
-    await session.update({ unlocked: [...list] });
-    return { ok: true as const };
   });
 
 /* ------------------------------------------------------------------ */
