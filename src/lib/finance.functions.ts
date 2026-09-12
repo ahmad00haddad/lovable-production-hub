@@ -155,11 +155,14 @@ export const financeWrite = createServerFn({ method: "POST" })
     if (!data.id) throw new Error("ID_REQUIRED");
 
     if (data.action === "update") {
-      // Projects table uses RPC to bypass RLS
       if (data.table === "projects") {
+        let budgetStr = String(values.client_budget ?? "0").replace(/,/g, "");
+        let budget = Number(budgetStr);
+        if (isNaN(budget)) budget = 0;
+        
         const { error } = await supabase.rpc("update_project_finance", {
           _project_id: data.projectId,
-          _client_budget: Number(values.client_budget ?? 0),
+          _client_budget: budget,
           _client_name: String(values.client_name ?? ""),
           _client_due_date: values.client_due_date ?? null,
         });
