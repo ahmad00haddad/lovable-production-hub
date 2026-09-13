@@ -317,8 +317,11 @@ function OverviewTab(props: {
   receivable: number;
   outOfPocket: number;
   ious: Record<string, number>;
+  crewTotal: number;
   crewDue: number;
+  totalCost: number;
   profit: number;
+  saving: boolean;
   onSave: (values: Record<string, unknown>) => void;
 }) {
   const { projectId, project, currency } = props;
@@ -327,17 +330,31 @@ function OverviewTab(props: {
     client_name: (project["client_name"] as string) ?? "",
     client_due_date: (project["client_due_date"] as string) ?? "",
   });
-  
+
+  // إبقاء النموذج متزامناً مع البيانات القادمة من الخادم
+  useEffect(() => {
+    setForm({
+      client_budget: String(project["client_budget"] ?? 0),
+      client_name: (project["client_name"] as string) ?? "",
+      client_due_date: (project["client_due_date"] as string) ?? "",
+    });
+  }, [project["client_budget"], project["client_name"], project["client_due_date"]]);
+
   // 1. Color-Shifting Aura
-  const expenseRatio = props.clientBudget > 0 ? props.expense / props.clientBudget : 0;
+  const costRatio = props.clientBudget > 0 ? props.totalCost / props.clientBudget : 0;
   let auraColor = "from-emerald-500/10 via-transparent to-transparent";
-  if (expenseRatio > 0.9) auraColor = "from-red-500/20 via-transparent to-transparent";
-  else if (expenseRatio > 0.7) auraColor = "from-amber-500/20 via-transparent to-transparent";
+  if (costRatio > 0.9) auraColor = "from-red-500/20 via-transparent to-transparent";
+  else if (costRatio > 0.7) auraColor = "from-amber-500/20 via-transparent to-transparent";
 
   const [isSaved, setIsSaved] = useState(false);
   const handleSave = () => {
+    const budget = Number(String(form.client_budget).replace(/,/g, ""));
+    if (!Number.isFinite(budget) || budget < 0) {
+      toast.error("أدخل ميزانية صحيحة");
+      return;
+    }
     props.onSave({
-      client_budget: Number(form.client_budget || 0),
+      client_budget: budget,
       client_name: form.client_name.trim() || null,
       client_due_date: form.client_due_date || null,
     });
@@ -345,6 +362,13 @@ function OverviewTab(props: {
     if (navigator.vibrate) navigator.vibrate([10, 30, 10]);
     setTimeout(() => setIsSaved(false), 2000);
   };
+
+  const daysToDue = (() => {
+    const d = project["client_due_date"] as string | null;
+    if (!d) return null;
+    const diff = Math.ceil((new Date(`${d}T00:00:00`).getTime() - Date.now()) / 86400000);
+    return Number.isFinite(diff) ? diff : null;
+  })();
 
   return (
     <div className="space-y-4">
