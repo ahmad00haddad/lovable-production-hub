@@ -89,37 +89,54 @@ function FinanceInner({ projectId }: { projectId: string }) {
   const project = (data.project ?? {}) as Record<string, any>;
   const currency = (entries[0]?.["currency"] as string) ?? "JOD";
 
-  const income = entries.filter((e) => e["entry_type"] === "income").reduce((s, e) => s + Number(e["amount"]), 0);
-  const incomeReceived = entries.filter((e) => e["entry_type"] === "income" && e["is_paid"]).reduce((s, e) => s + Number(e["amount"]), 0);
-  const expense = entries.filter((e) => e["entry_type"] === "expense").reduce((s, e) => s + Number(e["amount"]), 0);
-  const outOfPocket = entries
-    .filter((e) => e["entry_type"] === "expense" && e["paid_by"] === "producer")
-    .reduce((s, e) => s + Number(e["amount"]), 0);
-    
-  const ious = entries
-    .filter((e) => e["entry_type"] === "expense" && e["paid_by"] && e["paid_by"] !== "project" && e["paid_by"] !== "client" && e["paid_by"] !== "producer" && !e["is_paid"])
+  const num = (v: unknown) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const incomeEntries = entries.filter((e) => e["entry_type"] === "income");
+  const expenseEntries = entries.filter((e) => e["entry_type"] === "expense");
+
+  const income = incomeEntries.reduce((s, e) => s + num(e["amount"]), 0);
+  const incomeReceived = incomeEntries.filter((e) => e["is_paid"]).reduce((s, e) => s + num(e["amount"]), 0);
+  const expense = expenseEntries.reduce((s, e) => s + num(e["amount"]), 0);
+
+  // «من جيبي» = مصاريف دفعها المنتج شخصياً + دفعات الطاقم التي دفعها من جيبه
+  const outOfPocket =
+    expenseEntries.filter((e) => e["paid_by"] === "producer").reduce((s, e) => s + num(e["amount"]), 0) +
+    payments.filter((p) => p["paid_by"] === "producer").reduce((s, p) => s + num(p["amount"]), 0);
+
+  // ذمم لأشخاص آخرين دفعوا من جيبهم ولم تُسدَّد لهم بعد
+  const KNOWN_PAYERS = ["producer", "project", "client"];
+  const ious = expenseEntries
+    .filter((e) => e["paid_by"] && !KNOWN_PAYERS.includes(e["paid_by"]) && !e["is_paid"])
     .reduce((acc, e) => {
-      const p = e["paid_by"];
-      acc[p] = (acc[p] || 0) + Number(e["amount"]);
+      const p = String(e["paid_by"]);
+      acc[p] = (acc[p] || 0) + num(e["amount"]);
       return acc;
     }, {} as Record<string, number>);
 
-  const clientBudget = Number(project["client_budget"] ?? 0);
+  const clientBudget = num(project["client_budget"]);
 
   const rateTotal = (r: Record<string, any>) =>
-    r["rate_type"] === "flat" ? Number(r["rate"]) : Number(r["rate"]) * Number(r["days"] || 0);
+    r["rate_type"] === "flat" ? num(r["rate"]) : num(r["rate"]) * num(r["days"] || 0);
   const paidFor = (rateId: string) =>
-    payments.filter((p) => p["crew_rate_id"] === rateId).reduce((s, p) => s + Number(p["amount"]), 0);
+    payments.filter((p) => p["crew_rate_id"] === rateId).reduce((s, p) => s + num(p["amount"]), 0);
   const crewTotal = rates.reduce((s, r) => s + rateTotal(r), 0);
   const crewPaid = rates.reduce((s, r) => s + paidFor(r["id"] as string), 0);
   const crewDue = crewTotal - crewPaid;
   const receivable = Math.max(clientBudget - incomeReceived, 0);
-  const profit = clientBudget - expense - crewDue - (crewPaid ? 0 : 0);
+
+  // التكلفة الكلية = مصاريف مسجّلة + التزامات الطاقم (المدفوع والمتبقي)
+  // أجور الطاقم تُسجَّل في «الطاقم والأسعار» فقط، فلا يوجد ازدواج مع الحركات.
+  const totalCost = expense + crewTotal;
+  const profit = clientBudget - totalCost;
 
   const dayActual = (dayId: string) =>
     entries
       .filter((e) => e["call_sheet_id"] === dayId && e["entry_type"] === "expense")
-      .reduce((s, e) => s + Number(e["amount"]), 0);
+      .reduce((s, e) => s + num(e["amount"]), 0);
+  const dayBudgetSum = days.reduce((s, d) => s + num(d["day_budget"]), 0);
 
   const TABS: Array<[Tab, string]> = [
     ["overview", "نظرة عامة"],
