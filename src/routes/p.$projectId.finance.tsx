@@ -186,8 +186,11 @@ function FinanceInner({ projectId }: { projectId: string }) {
           receivable={receivable}
           outOfPocket={outOfPocket}
           ious={ious}
+          crewTotal={crewTotal}
           crewDue={crewDue}
+          totalCost={totalCost}
           profit={profit}
+          saving={mutate.isPending}
           onSave={(values) => mutate.mutate({ projectId, table: "projects", action: "update", id: projectId, values })}
         />
       )}
@@ -197,6 +200,8 @@ function FinanceInner({ projectId }: { projectId: string }) {
           projectId={projectId}
           days={days}
           currency={currency}
+          clientBudget={clientBudget}
+          dayBudgetSum={dayBudgetSum}
           dayActual={dayActual}
           onBudget={(id, day_budget) =>
             mutate.mutate({ projectId, table: "call_sheets", action: "update", id, values: { day_budget } })
