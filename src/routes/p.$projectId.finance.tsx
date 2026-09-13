@@ -89,37 +89,54 @@ function FinanceInner({ projectId }: { projectId: string }) {
   const project = (data.project ?? {}) as Record<string, any>;
   const currency = (entries[0]?.["currency"] as string) ?? "JOD";
 
-  const income = entries.filter((e) => e["entry_type"] === "income").reduce((s, e) => s + Number(e["amount"]), 0);
-  const incomeReceived = entries.filter((e) => e["entry_type"] === "income" && e["is_paid"]).reduce((s, e) => s + Number(e["amount"]), 0);
-  const expense = entries.filter((e) => e["entry_type"] === "expense").reduce((s, e) => s + Number(e["amount"]), 0);
-  const outOfPocket = entries
-    .filter((e) => e["entry_type"] === "expense" && e["paid_by"] === "producer")
-    .reduce((s, e) => s + Number(e["amount"]), 0);
-    
-  const ious = entries
-    .filter((e) => e["entry_type"] === "expense" && e["paid_by"] && e["paid_by"] !== "project" && e["paid_by"] !== "client" && e["paid_by"] !== "producer" && !e["is_paid"])
+  const num = (v: unknown) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const incomeEntries = entries.filter((e) => e["entry_type"] === "income");
+  const expenseEntries = entries.filter((e) => e["entry_type"] === "expense");
+
+  const income = incomeEntries.reduce((s, e) => s + num(e["amount"]), 0);
+  const incomeReceived = incomeEntries.filter((e) => e["is_paid"]).reduce((s, e) => s + num(e["amount"]), 0);
+  const expense = expenseEntries.reduce((s, e) => s + num(e["amount"]), 0);
+
+  // «من جيبي» = مصاريف دفعها المنتج شخصياً + دفعات الطاقم التي دفعها من جيبه
+  const outOfPocket =
+    expenseEntries.filter((e) => e["paid_by"] === "producer").reduce((s, e) => s + num(e["amount"]), 0) +
+    payments.filter((p) => p["paid_by"] === "producer").reduce((s, p) => s + num(p["amount"]), 0);
+
+  // ذمم لأشخاص آخرين دفعوا من جيبهم ولم تُسدَّد لهم بعد
+  const KNOWN_PAYERS = ["producer", "project", "client"];
+  const ious = expenseEntries
+    .filter((e) => e["paid_by"] && !KNOWN_PAYERS.includes(e["paid_by"]) && !e["is_paid"])
     .reduce((acc, e) => {
-      const p = e["paid_by"];
-      acc[p] = (acc[p] || 0) + Number(e["amount"]);
+      const p = String(e["paid_by"]);
+      acc[p] = (acc[p] || 0) + num(e["amount"]);
       return acc;
     }, {} as Record<string, number>);
 
-  const clientBudget = Number(project["client_budget"] ?? 0);
+  const clientBudget = num(project["client_budget"]);
 
   const rateTotal = (r: Record<string, any>) =>
-    r["rate_type"] === "flat" ? Number(r["rate"]) : Number(r["rate"]) * Number(r["days"] || 0);
+    r["rate_type"] === "flat" ? num(r["rate"]) : num(r["rate"]) * num(r["days"] || 0);
   const paidFor = (rateId: string) =>
-    payments.filter((p) => p["crew_rate_id"] === rateId).reduce((s, p) => s + Number(p["amount"]), 0);
+    payments.filter((p) => p["crew_rate_id"] === rateId).reduce((s, p) => s + num(p["amount"]), 0);
   const crewTotal = rates.reduce((s, r) => s + rateTotal(r), 0);
   const crewPaid = rates.reduce((s, r) => s + paidFor(r["id"] as string), 0);
   const crewDue = crewTotal - crewPaid;
   const receivable = Math.max(clientBudget - incomeReceived, 0);
-  const profit = clientBudget - expense - crewDue - (crewPaid ? 0 : 0);
+
+  // التكلفة الكلية = مصاريف مسجّلة + التزامات الطاقم (المدفوع والمتبقي)
+  // أجور الطاقم تُسجَّل في «الطاقم والأسعار» فقط، فلا يوجد ازدواج مع الحركات.
+  const totalCost = expense + crewTotal;
+  const profit = clientBudget - totalCost;
 
   const dayActual = (dayId: string) =>
     entries
       .filter((e) => e["call_sheet_id"] === dayId && e["entry_type"] === "expense")
-      .reduce((s, e) => s + Number(e["amount"]), 0);
+      .reduce((s, e) => s + num(e["amount"]), 0);
+  const dayBudgetSum = days.reduce((s, d) => s + num(d["day_budget"]), 0);
 
   const TABS: Array<[Tab, string]> = [
     ["overview", "نظرة عامة"],
@@ -169,8 +186,11 @@ function FinanceInner({ projectId }: { projectId: string }) {
           receivable={receivable}
           outOfPocket={outOfPocket}
           ious={ious}
+          crewTotal={crewTotal}
           crewDue={crewDue}
+          totalCost={totalCost}
           profit={profit}
+          saving={mutate.isPending}
           onSave={(values) => mutate.mutate({ projectId, table: "projects", action: "update", id: projectId, values })}
         />
       )}
@@ -180,6 +200,8 @@ function FinanceInner({ projectId }: { projectId: string }) {
           projectId={projectId}
           days={days}
           currency={currency}
+          clientBudget={clientBudget}
+          dayBudgetSum={dayBudgetSum}
           dayActual={dayActual}
           onBudget={(id, day_budget) =>
             mutate.mutate({ projectId, table: "call_sheets", action: "update", id, values: { day_budget } })
@@ -295,8 +317,11 @@ function OverviewTab(props: {
   receivable: number;
   outOfPocket: number;
   ious: Record<string, number>;
+  crewTotal: number;
   crewDue: number;
+  totalCost: number;
   profit: number;
+  saving: boolean;
   onSave: (values: Record<string, unknown>) => void;
 }) {
   const { projectId, project, currency } = props;
@@ -305,17 +330,31 @@ function OverviewTab(props: {
     client_name: (project["client_name"] as string) ?? "",
     client_due_date: (project["client_due_date"] as string) ?? "",
   });
-  
+
+  // إبقاء النموذج متزامناً مع البيانات القادمة من الخادم
+  useEffect(() => {
+    setForm({
+      client_budget: String(project["client_budget"] ?? 0),
+      client_name: (project["client_name"] as string) ?? "",
+      client_due_date: (project["client_due_date"] as string) ?? "",
+    });
+  }, [project["client_budget"], project["client_name"], project["client_due_date"]]);
+
   // 1. Color-Shifting Aura
-  const expenseRatio = props.clientBudget > 0 ? props.expense / props.clientBudget : 0;
+  const costRatio = props.clientBudget > 0 ? props.totalCost / props.clientBudget : 0;
   let auraColor = "from-emerald-500/10 via-transparent to-transparent";
-  if (expenseRatio > 0.9) auraColor = "from-red-500/20 via-transparent to-transparent";
-  else if (expenseRatio > 0.7) auraColor = "from-amber-500/20 via-transparent to-transparent";
+  if (costRatio > 0.9) auraColor = "from-red-500/20 via-transparent to-transparent";
+  else if (costRatio > 0.7) auraColor = "from-amber-500/20 via-transparent to-transparent";
 
   const [isSaved, setIsSaved] = useState(false);
   const handleSave = () => {
+    const budget = Number(String(form.client_budget).replace(/,/g, ""));
+    if (!Number.isFinite(budget) || budget < 0) {
+      toast.error("أدخل ميزانية صحيحة");
+      return;
+    }
     props.onSave({
-      client_budget: Number(form.client_budget || 0),
+      client_budget: budget,
       client_name: form.client_name.trim() || null,
       client_due_date: form.client_due_date || null,
     });
@@ -323,6 +362,13 @@ function OverviewTab(props: {
     if (navigator.vibrate) navigator.vibrate([10, 30, 10]);
     setTimeout(() => setIsSaved(false), 2000);
   };
+
+  const daysToDue = (() => {
+    const d = project["client_due_date"] as string | null;
+    if (!d) return null;
+    const diff = Math.ceil((new Date(`${d}T00:00:00`).getTime() - Date.now()) / 86400000);
+    return Number.isFinite(diff) ? diff : null;
+  })();
 
   return (
     <div className="space-y-4">
@@ -333,7 +379,7 @@ function OverviewTab(props: {
           <div>
             <div className="text-xs text-muted-foreground flex items-center">
               الربح المتوقع
-              <HintTooltip text="الميزانية الكلية للعميل ناقص المصروف الفعلي" />
+              <HintTooltip text="ميزانية العميل ناقص التكلفة الكلية (المصاريف المسجّلة + أجور الطاقم كاملة)" />
             </div>
             <div className={`mt-1 text-2xl font-black tabular-nums ${props.profit >= 0 ? "text-amber" : "text-red-400"}`}>
               <AnimatedNumber value={props.profit} currency={currency} />
@@ -341,11 +387,33 @@ function OverviewTab(props: {
           </div>
           <Wallet size={30} className="text-amber" />
         </div>
+
+        {props.clientBudget > 0 && (
+          <div className="relative z-10 mt-3">
+            <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
+              <div
+                className={`h-full rounded-full transition-all duration-700 ${
+                  costRatio > 1 ? "bg-red-500" : costRatio > 0.8 ? "bg-amber-500" : "bg-emerald-500"
+                }`}
+                style={{ width: `${Math.min(costRatio * 100, 100)}%` }}
+              />
+            </div>
+            <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
+              <span>استُهلك {Math.round(costRatio * 100)}% من الميزانية</span>
+              <span className="tabular-nums">{money(props.totalCost, currency)}</span>
+            </div>
+          </div>
+        )}
+
         <div className="relative z-10 mt-4 grid grid-cols-2 gap-3">
           <Stat label="ميزانية العميل" value={props.clientBudget} currency={currency} isAnimated tone="text-emerald-400" hint="إجمالي ما تم الاتفاق عليه مع العميل" />
-          <Stat label="المصروف الفعلي" value={props.expense} currency={currency} isAnimated tone="text-red-400" hint="مجموع كل المصاريف التي تم إنفاقها فعلياً حتى الآن" />
-          <Stat label="مستحق من العميل" value={props.receivable} currency={currency} isAnimated tone="text-amber" hint="المتبقي من ميزانية العميل ولم تقبضه بعد" />
+          <Stat label="التكلفة الكلية" value={props.totalCost} currency={currency} isAnimated tone="text-red-400" hint="المصاريف المسجّلة + أجور الطاقم كاملة (المدفوع والمتبقي)" />
+          <Stat label="المصاريف المسجّلة" value={props.expense} currency={currency} isAnimated tone="text-red-400" hint="مجموع الحركات من نوع مصروف (بدون أجور الطاقم)" />
+          <Stat label="أجور الطاقم" value={props.crewTotal} currency={currency} isAnimated tone="text-red-400" hint="مجموع أسعار الطاقم المتفق عليها" />
+          <Stat label="محصّل فعلياً" value={props.incomeReceived} currency={currency} isAnimated tone="text-emerald-400" hint="الإيرادات التي دخلت فعلاً (مؤشّرة كمقبوضة)" />
+          <Stat label="مستحق من العميل" value={props.receivable} currency={currency} isAnimated tone="text-amber" hint="ميزانية العميل ناقص ما حصّلته فعلاً" />
           <Stat label="مستحق للطاقم" value={props.crewDue} currency={currency} isAnimated tone="text-amber" hint="الأجور المتبقية التي يجب دفعها لفريق العمل" />
+          <Stat label="إجمالي الإيرادات" value={props.income} currency={currency} isAnimated hint="كل الإيرادات المسجّلة سواء حُصّلت أم لا" />
         </div>
         <div className="relative z-10 mt-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-center text-[11px]">
           <span className="text-muted-foreground flex items-center justify-center gap-1">
@@ -373,8 +441,13 @@ function OverviewTab(props: {
           </div>
         )}
         {project["client_due_date"] && (
-          <div className="mt-2 text-center text-[11px] text-muted-foreground">
+          <div className="relative z-10 mt-2 text-center text-[11px] text-muted-foreground">
             دفعة العميل مستحقة بتاريخ {project["client_due_date"]}
+            {daysToDue !== null && (
+              <span className={daysToDue < 0 ? "text-red-400 font-bold" : "text-amber font-bold"}>
+                {daysToDue < 0 ? ` — متأخرة ${Math.abs(daysToDue)} يوم` : daysToDue === 0 ? " — اليوم" : ` — بعد ${daysToDue} يوم`}
+              </span>
+            )}
           </div>
         )}
       </section>
@@ -409,11 +482,13 @@ function OverviewTab(props: {
         </div>
         <button
           onClick={handleSave}
-          className="relative overflow-hidden flex w-full items-center justify-center gap-2 rounded-xl bg-white/10 py-2 text-xs font-bold active:scale-95 transition-transform"
+          disabled={props.saving}
+          className="relative overflow-hidden flex w-full items-center justify-center gap-2 rounded-xl bg-white/10 py-2 text-xs font-bold active:scale-95 transition-transform disabled:opacity-50"
         >
           <span className={`flex items-center gap-2 transition-opacity duration-300 ${isSaved ? 'opacity-0' : 'opacity-100'}`}>
-            <Save size={14} /> حفظ
+            <Save size={14} /> {props.saving ? "جارٍ الحفظ..." : "حفظ"}
           </span>
+          
           
           {isSaved && (
             <div className="absolute inset-0 flex items-center justify-center">

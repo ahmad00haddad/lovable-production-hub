@@ -363,6 +363,35 @@ export type Database = {
           },
         ]
       }
+      finance_pins: {
+        Row: {
+          created_at: string | null
+          id: string
+          pin: string
+          project_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          pin: string
+          project_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          pin?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_pins_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           client_budget: number
@@ -731,6 +760,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_project_finance: { Args: { _project_id: string }; Returns: Json }
       project_exists: { Args: { _project_id: string }; Returns: boolean }
       resolve_project_code: { Args: { _short_code: string }; Returns: string }
       update_project: {
@@ -759,6 +789,15 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      update_project_finance: {
+        Args: {
+          _client_budget: number
+          _client_due_date: string
+          _client_name: string
+          _project_id: string
+        }
+        Returns: undefined
       }
     }
     Enums: {
