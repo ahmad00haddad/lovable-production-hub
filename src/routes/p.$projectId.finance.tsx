@@ -379,7 +379,7 @@ function OverviewTab(props: {
           <div>
             <div className="text-xs text-muted-foreground flex items-center">
               الربح المتوقع
-              <HintTooltip text="الميزانية الكلية للعميل ناقص المصروف الفعلي" />
+              <HintTooltip text="ميزانية العميل ناقص التكلفة الكلية (المصاريف المسجّلة + أجور الطاقم كاملة)" />
             </div>
             <div className={`mt-1 text-2xl font-black tabular-nums ${props.profit >= 0 ? "text-amber" : "text-red-400"}`}>
               <AnimatedNumber value={props.profit} currency={currency} />
@@ -387,11 +387,33 @@ function OverviewTab(props: {
           </div>
           <Wallet size={30} className="text-amber" />
         </div>
+
+        {props.clientBudget > 0 && (
+          <div className="relative z-10 mt-3">
+            <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
+              <div
+                className={`h-full rounded-full transition-all duration-700 ${
+                  costRatio > 1 ? "bg-red-500" : costRatio > 0.8 ? "bg-amber-500" : "bg-emerald-500"
+                }`}
+                style={{ width: `${Math.min(costRatio * 100, 100)}%` }}
+              />
+            </div>
+            <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
+              <span>استُهلك {Math.round(costRatio * 100)}% من الميزانية</span>
+              <span className="tabular-nums">{money(props.totalCost, currency)}</span>
+            </div>
+          </div>
+        )}
+
         <div className="relative z-10 mt-4 grid grid-cols-2 gap-3">
           <Stat label="ميزانية العميل" value={props.clientBudget} currency={currency} isAnimated tone="text-emerald-400" hint="إجمالي ما تم الاتفاق عليه مع العميل" />
-          <Stat label="المصروف الفعلي" value={props.expense} currency={currency} isAnimated tone="text-red-400" hint="مجموع كل المصاريف التي تم إنفاقها فعلياً حتى الآن" />
-          <Stat label="مستحق من العميل" value={props.receivable} currency={currency} isAnimated tone="text-amber" hint="المتبقي من ميزانية العميل ولم تقبضه بعد" />
+          <Stat label="التكلفة الكلية" value={props.totalCost} currency={currency} isAnimated tone="text-red-400" hint="المصاريف المسجّلة + أجور الطاقم كاملة (المدفوع والمتبقي)" />
+          <Stat label="المصاريف المسجّلة" value={props.expense} currency={currency} isAnimated tone="text-red-400" hint="مجموع الحركات من نوع مصروف (بدون أجور الطاقم)" />
+          <Stat label="أجور الطاقم" value={props.crewTotal} currency={currency} isAnimated tone="text-red-400" hint="مجموع أسعار الطاقم المتفق عليها" />
+          <Stat label="محصّل فعلياً" value={props.incomeReceived} currency={currency} isAnimated tone="text-emerald-400" hint="الإيرادات التي دخلت فعلاً (مؤشّرة كمقبوضة)" />
+          <Stat label="مستحق من العميل" value={props.receivable} currency={currency} isAnimated tone="text-amber" hint="ميزانية العميل ناقص ما حصّلته فعلاً" />
           <Stat label="مستحق للطاقم" value={props.crewDue} currency={currency} isAnimated tone="text-amber" hint="الأجور المتبقية التي يجب دفعها لفريق العمل" />
+          <Stat label="إجمالي الإيرادات" value={props.income} currency={currency} isAnimated hint="كل الإيرادات المسجّلة سواء حُصّلت أم لا" />
         </div>
         <div className="relative z-10 mt-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-center text-[11px]">
           <span className="text-muted-foreground flex items-center justify-center gap-1">
