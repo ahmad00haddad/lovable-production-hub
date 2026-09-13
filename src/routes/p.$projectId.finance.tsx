@@ -482,11 +482,13 @@ function OverviewTab(props: {
         </div>
         <button
           onClick={handleSave}
-          className="relative overflow-hidden flex w-full items-center justify-center gap-2 rounded-xl bg-white/10 py-2 text-xs font-bold active:scale-95 transition-transform"
+          disabled={props.saving}
+          className="relative overflow-hidden flex w-full items-center justify-center gap-2 rounded-xl bg-white/10 py-2 text-xs font-bold active:scale-95 transition-transform disabled:opacity-50"
         >
           <span className={`flex items-center gap-2 transition-opacity duration-300 ${isSaved ? 'opacity-0' : 'opacity-100'}`}>
-            <Save size={14} /> حفظ
+            <Save size={14} /> {props.saving ? "جارٍ الحفظ..." : "حفظ"}
           </span>
+          
           
           {isSaved && (
             <div className="absolute inset-0 flex items-center justify-center">
