@@ -441,8 +441,13 @@ function OverviewTab(props: {
           </div>
         )}
         {project["client_due_date"] && (
-          <div className="mt-2 text-center text-[11px] text-muted-foreground">
+          <div className="relative z-10 mt-2 text-center text-[11px] text-muted-foreground">
             دفعة العميل مستحقة بتاريخ {project["client_due_date"]}
+            {daysToDue !== null && (
+              <span className={daysToDue < 0 ? "text-red-400 font-bold" : "text-amber font-bold"}>
+                {daysToDue < 0 ? ` — متأخرة ${Math.abs(daysToDue)} يوم` : daysToDue === 0 ? " — اليوم" : ` — بعد ${daysToDue} يوم`}
+              </span>
+            )}
           </div>
         )}
       </section>
