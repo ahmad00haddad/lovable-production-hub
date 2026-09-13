@@ -135,6 +135,18 @@ function sanitize(table: string, values: Record<string, unknown> | undefined) {
   return out;
 }
 
+async function assertBelongs(table: string, id: unknown, projectId: string) {
+  if (typeof id !== "string" || !id) throw new Error("BAD_PARENT");
+  const { data: row, error } = await supabase
+    .from(table as any)
+    .select("id")
+    .eq("id", id)
+    .eq("project_id", projectId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!row) throw new Error("PARENT_NOT_IN_PROJECT");
+}
+
 export const financeWrite = createServerFn({ method: "POST" })
   .inputValidator((data: WriteInput) => data)
   .handler(async ({ data }) => {
@@ -143,13 +155,28 @@ export const financeWrite = createServerFn({ method: "POST" })
 
     if (data.action === "insert") {
       if (data.table === "call_sheets" || data.table === "projects") throw new Error("NOT_ALLOWED");
+
+      // Foreign keys must belong to the same project.
+      if (data.table === "crew_payments") {
+        await assertBelongs("crew_rates", values["crew_rate_id"], data.projectId);
+      }
+      if (data.table === "quotation_items") {
+        await assertBelongs("quotations", values["quotation_id"], data.projectId);
+      }
+      if (values["call_sheet_id"]) {
+        await assertBelongs("call_sheets", values["call_sheet_id"], data.projectId);
+      }
+      if (values["team_member_id"]) {
+        await assertBelongs("team_members", values["team_member_id"], data.projectId);
+      }
+
       const { data: row, error } = await supabase
         .from(data.table as any)
         .insert({ ...values, project_id: data.projectId } as any)
-        .select()
+        .select("id")
         .single();
       if (error) throw error;
-      return row as { id: string };
+      return row as unknown as { id: string };
     }
 
     if (!data.id) throw new Error("ID_REQUIRED");
