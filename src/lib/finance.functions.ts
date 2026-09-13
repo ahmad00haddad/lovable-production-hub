@@ -197,6 +197,13 @@ export const financeWrite = createServerFn({ method: "POST" })
         return { id: data.id };
       }
 
+      if (values["call_sheet_id"]) {
+        await assertBelongs("call_sheets", values["call_sheet_id"], data.projectId);
+      }
+      if (values["team_member_id"]) {
+        await assertBelongs("team_members", values["team_member_id"], data.projectId);
+      }
+
       const { error } = await supabase
         .from(data.table as any)
         .update(values as any)
