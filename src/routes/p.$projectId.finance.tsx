@@ -598,6 +598,14 @@ function DaysTab({
                 </div>
               </div>
             </div>
+            {budget > 0 && (
+              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                <div
+                  className={`h-full rounded-full ${actual > budget ? "bg-red-500" : actual / budget > 0.8 ? "bg-amber-500" : "bg-emerald-500"}`}
+                  style={{ width: `${Math.min((actual / budget) * 100, 100)}%` }}
+                />
+              </div>
+            )}
             {editing === d["id"] ? (
               <div className="mt-3 flex gap-2">
                 <input
@@ -609,12 +617,23 @@ function DaysTab({
                 />
                 <button
                   onClick={() => {
-                    onBudget(d["id"] as string, Number(value || 0));
+                    const n = Number(String(value).replace(/,/g, "") || 0);
+                    if (!Number.isFinite(n) || n < 0) {
+                      toast.error("أدخل رقماً صحيحاً");
+                      return;
+                    }
+                    onBudget(d["id"] as string, n);
                     setEditing(null);
                   }}
                   className="shrink-0 rounded-xl bg-amber-gradient px-4 text-xs font-bold text-black"
                 >
                   حفظ
+                </button>
+                <button
+                  onClick={() => setEditing(null)}
+                  className="shrink-0 rounded-xl bg-white/10 px-3 text-xs font-bold"
+                >
+                  إلغاء
                 </button>
               </div>
             ) : (
