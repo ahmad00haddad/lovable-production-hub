@@ -36,6 +36,11 @@ function money(n: number, currency: string) {
   return `${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
 }
 
+function num(v: unknown) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
 function FinancePage() {
   const { projectId } = Route.useParams();
   return (
@@ -89,10 +94,6 @@ function FinanceInner({ projectId }: { projectId: string }) {
   const project = (data.project ?? {}) as Record<string, any>;
   const currency = (entries[0]?.["currency"] as string) ?? "JOD";
 
-  const num = (v: unknown) => {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : 0;
-  };
 
   const incomeEntries = entries.filter((e) => e["entry_type"] === "income");
   const expenseEntries = entries.filter((e) => e["entry_type"] === "expense");
@@ -521,11 +522,13 @@ function OverviewTab(props: {
 /* ----------------------------- Days ----------------------------- */
 
 function DaysTab({
-  days, currency, dayActual, onBudget,
+  days, currency, clientBudget, dayBudgetSum, dayActual, onBudget,
 }: {
   projectId: string;
   days: Array<Record<string, any>>;
   currency: string;
+  clientBudget: number;
+  dayBudgetSum: number;
   dayActual: (id: string) => number;
   onBudget: (id: string, budget: number) => void;
 }) {
@@ -540,8 +543,33 @@ function DaysTab({
     );
   }
 
+  const totalDayActual = days.reduce((s, d) => s + dayActual(d["id"] as string), 0);
+
   return (
     <div className="space-y-3">
+      <section className="glass-card grid grid-cols-3 gap-2 rounded-2xl p-4 text-center">
+        <div>
+          <div className="text-[10px] text-muted-foreground">مجموع ميزانيات الأيام</div>
+          <div className="text-sm font-bold tabular-nums">{dayBudgetSum.toLocaleString("en-US")}</div>
+        </div>
+        <div>
+          <div className="text-[10px] text-muted-foreground">مصروف الأيام</div>
+          <div className="text-sm font-bold tabular-nums text-red-400">{totalDayActual.toLocaleString("en-US")}</div>
+        </div>
+        <div>
+          <div className="text-[10px] text-muted-foreground">الفرق</div>
+          <div className={`text-sm font-bold tabular-nums ${dayBudgetSum - totalDayActual >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+            {(dayBudgetSum - totalDayActual).toLocaleString("en-US")}
+          </div>
+        </div>
+      </section>
+
+      {clientBudget > 0 && dayBudgetSum > clientBudget && (
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-center text-[11px] text-red-300">
+          مجموع ميزانيات الأيام ({dayBudgetSum.toLocaleString("en-US")}) أكبر من ميزانية العميل ({clientBudget.toLocaleString("en-US")} {currency})
+        </div>
+      )}
+
       {days.map((d) => {
         const budget = Number(d["day_budget"] ?? 0);
         const actual = dayActual(d["id"] as string);
@@ -571,6 +599,14 @@ function DaysTab({
                 </div>
               </div>
             </div>
+            {budget > 0 && (
+              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                <div
+                  className={`h-full rounded-full ${actual > budget ? "bg-red-500" : actual / budget > 0.8 ? "bg-amber-500" : "bg-emerald-500"}`}
+                  style={{ width: `${Math.min((actual / budget) * 100, 100)}%` }}
+                />
+              </div>
+            )}
             {editing === d["id"] ? (
               <div className="mt-3 flex gap-2">
                 <input
@@ -582,12 +618,23 @@ function DaysTab({
                 />
                 <button
                   onClick={() => {
-                    onBudget(d["id"] as string, Number(value || 0));
+                    const n = Number(String(value).replace(/,/g, "") || 0);
+                    if (!Number.isFinite(n) || n < 0) {
+                      toast.error("أدخل رقماً صحيحاً");
+                      return;
+                    }
+                    onBudget(d["id"] as string, n);
                     setEditing(null);
                   }}
                   className="shrink-0 rounded-xl bg-amber-gradient px-4 text-xs font-bold text-black"
                 >
                   حفظ
+                </button>
+                <button
+                  onClick={() => setEditing(null)}
+                  className="shrink-0 rounded-xl bg-white/10 px-3 text-xs font-bold"
+                >
+                  إلغاء
                 </button>
               </div>
             ) : (
@@ -660,6 +707,7 @@ function CrewTab({
   const [showForm, setShowForm] = useState(false);
   const [payFor, setPayFor] = useState<string | null>(null);
   const [payAmount, setPayAmount] = useState("");
+  const [payBy, setPayBy] = useState<"project" | "producer">("project");
   const [form, setForm] = useState({
     person_name: "", role: "", rate_type: "day", rate: "", days: "1", team_member_id: "",
   });
@@ -740,14 +788,18 @@ function CrewTab({
           <button
             onClick={() => {
               if (!form.person_name.trim()) return toast.error("اكتب الاسم");
+              const rate = Number(String(form.rate).replace(/,/g, "") || 0);
+              const dys = form.rate_type === "flat" ? 1 : Number(String(form.days).replace(/,/g, "") || 1);
+              if (!Number.isFinite(rate) || rate <= 0) return toast.error("أدخل سعراً صحيحاً");
+              if (!Number.isFinite(dys) || dys <= 0) return toast.error("أدخل عدد أيام صحيح");
               mutate({
                 projectId, table: "crew_rates", action: "insert",
                 values: {
                   person_name: form.person_name.trim(),
                   role: form.role.trim() || null,
                   rate_type: form.rate_type,
-                  rate: Number(form.rate || 0),
-                  days: Number(form.days || 1),
+                  rate,
+                  days: dys,
                   team_member_id: form.team_member_id || null,
                   currency,
                 },
@@ -792,7 +844,14 @@ function CrewTab({
                 </div>
               </div>
               <button
-                onClick={() => mutate({ projectId, table: "crew_rates", action: "delete", id: r["id"] as string })}
+                onClick={() => {
+                  const msg = paid > 0
+                    ? `${r["person_name"]}: توجد دفعات مسجّلة (${paid.toLocaleString("en-US")}). حذف السطر سيحذفها أيضاً. متابعة؟`
+                    : `حذف ${r["person_name"]} من كشف الأسعار؟`;
+                  if (window.confirm(msg)) {
+                    mutate({ projectId, table: "crew_rates", action: "delete", id: r["id"] as string });
+                  }
+                }}
                 className="shrink-0 text-muted-foreground hover:text-red-400"
                 aria-label="حذف"
               >
@@ -831,9 +890,12 @@ function CrewTab({
                   />
                   <button
                     onClick={() => {
+                      const amt = Number(String(payAmount).replace(/,/g, "") || 0);
+                      if (!Number.isFinite(amt) || amt <= 0) return toast.error("أدخل مبلغاً صحيحاً");
+                      if (amt > due + 0.001) return toast.error(`المبلغ أكبر من المتبقي (${due.toLocaleString("en-US")})`);
                       mutate({
                         projectId, table: "crew_payments", action: "insert",
-                        values: { crew_rate_id: r["id"], amount: Number(payAmount || 0) },
+                        values: { crew_rate_id: r["id"], amount: amt, paid_by: payBy },
                       });
                       setPayAmount("");
                       setPayFor(null);
@@ -843,10 +905,23 @@ function CrewTab({
                     حفظ
                   </button>
                 </div>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {(["project", "producer"] as const).map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setPayBy(t)}
+                      className={`rounded-xl py-2 text-[11px] font-bold transition ${
+                        payBy === t ? "bg-amber-gradient text-black" : "border border-white/10 bg-white/5"
+                      }`}
+                    >
+                      {t === "project" ? "من كاش المشروع" : "من جيبي"}
+                    </button>
+                  ))}
+                </div>
                 <SwipeToPay disabled={due <= 0} onSwipe={() => {
                   mutate({
                     projectId, table: "crew_payments", action: "insert",
-                    values: { crew_rate_id: r["id"], amount: due },
+                    values: { crew_rate_id: r["id"], amount: due, paid_by: payBy },
                   });
                   setPayFor(null);
                 }} />
@@ -891,9 +966,18 @@ function EntriesTab({
     is_paid: false,
   });
 
-  const visible = entries.filter((e) =>
-    filter === "all" ? true : filter === "unpaid" ? !e["is_paid"] : e["entry_type"] === filter,
-  );
+  const [dayFilter, setDayFilter] = useState("");
+
+  const visible = entries
+    .filter((e) => (filter === "all" ? true : filter === "unpaid" ? !e["is_paid"] : e["entry_type"] === filter))
+    .filter((e) => (dayFilter ? e["call_sheet_id"] === dayFilter : true));
+
+  const visExpense = visible
+    .filter((e) => e["entry_type"] !== "income")
+    .reduce((s, e) => s + num(e["amount"]), 0);
+  const visIncome = visible
+    .filter((e) => e["entry_type"] === "income")
+    .reduce((s, e) => s + num(e["amount"]), 0);
 
   return (
     <div className="space-y-3">
@@ -912,6 +996,33 @@ function EntriesTab({
           </button>
         ))}
       </div>
+
+      {days.length > 0 && (
+        <select value={dayFilter} onChange={(e) => setDayFilter(e.target.value)} className={input}>
+          <option value="" className="bg-background">كل الأيام</option>
+          {days.map((d) => (
+            <option key={d["id"]} value={d["id"] as string} className="bg-background">
+              {d["title"]}{d["shoot_date"] ? ` — ${d["shoot_date"]}` : ""}
+            </option>
+          ))}
+        </select>
+      )}
+
+      <div className="glass-card grid grid-cols-3 gap-2 rounded-2xl p-3 text-center">
+        <div>
+          <div className="text-[10px] text-muted-foreground">عدد الحركات</div>
+          <div className="text-sm font-bold tabular-nums">{visible.length}</div>
+        </div>
+        <div>
+          <div className="text-[10px] text-muted-foreground">مصاريف</div>
+          <div className="text-sm font-bold tabular-nums text-red-400">{visExpense.toLocaleString("en-US")}</div>
+        </div>
+        <div>
+          <div className="text-[10px] text-muted-foreground">إيرادات</div>
+          <div className="text-sm font-bold tabular-nums text-emerald-400">{visIncome.toLocaleString("en-US")}</div>
+        </div>
+      </div>
+
 
       {showForm ? (
         <div className="glass-card space-y-2.5 rounded-2xl p-4">
@@ -987,13 +1098,15 @@ function EntriesTab({
           <button
             onClick={() => {
               if (!form.title.trim()) return toast.error("اكتب اسم البند");
+              const amt = Number(String(form.amount).replace(/,/g, "") || 0);
+              if (!Number.isFinite(amt) || amt <= 0) return toast.error("أدخل مبلغاً صحيحاً");
               mutate({
                 projectId, table: "finance_entries", action: "insert",
                 values: {
                   entry_type: form.entry_type,
                   title: form.title.trim(),
                   category: form.category,
-                  amount: Number(form.amount || 0),
+                  amount: amt,
                   party: form.party.trim() || null,
                   entry_date: form.entry_date || null,
                   call_sheet_id: form.call_sheet_id || null,
@@ -1053,10 +1166,14 @@ function EntriesTab({
                 </div>
               </div>
               <div className={`shrink-0 text-sm font-black tabular-nums ${e["entry_type"] === "income" ? "text-emerald-400" : "text-red-400"}`}>
-                {e["entry_type"] === "income" ? "+" : "−"}{Number(e["amount"]).toLocaleString("en-US")}
+                {e["entry_type"] === "income" ? "+" : "−"}{num(e["amount"]).toLocaleString("en-US")}
               </div>
               <button
-                onClick={() => mutate({ projectId, table: "finance_entries", action: "delete", id: e["id"] as string })}
+                onClick={() => {
+                  if (window.confirm(`حذف «${e["title"]}»؟`)) {
+                    mutate({ projectId, table: "finance_entries", action: "delete", id: e["id"] as string });
+                  }
+                }}
                 className="shrink-0 text-muted-foreground hover:text-red-400"
                 aria-label="حذف"
               >
@@ -1067,12 +1184,10 @@ function EntriesTab({
         })}
       </div>
 
-      <div className="pt-1 text-center text-[11px] text-muted-foreground">
-        العملة: {money(0, currency).split(" ")[1]}
-      </div>
-      <div className="flex items-center justify-center gap-1 text-[11px] text-muted-foreground">
+      <div className="flex items-center justify-center gap-2 pt-1 text-[11px] text-muted-foreground">
         <TrendingUp size={12} className="text-emerald-400" />
         <TrendingDown size={12} className="text-red-400" />
+        <span>العملة: {currency}</span>
       </div>
     </div>
   );
