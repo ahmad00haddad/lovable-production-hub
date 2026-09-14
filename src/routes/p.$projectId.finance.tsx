@@ -89,10 +89,6 @@ function FinanceInner({ projectId }: { projectId: string }) {
   const project = (data.project ?? {}) as Record<string, any>;
   const currency = (entries[0]?.["currency"] as string) ?? "JOD";
 
-  const num = (v: unknown) => {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : 0;
-  };
 
   const incomeEntries = entries.filter((e) => e["entry_type"] === "income");
   const expenseEntries = entries.filter((e) => e["entry_type"] === "expense");
