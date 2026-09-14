@@ -36,6 +36,11 @@ function money(n: number, currency: string) {
   return `${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
 }
 
+function num(v: unknown) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
 function FinancePage() {
   const { projectId } = Route.useParams();
   return (
