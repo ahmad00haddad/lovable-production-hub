@@ -965,9 +965,18 @@ function EntriesTab({
     is_paid: false,
   });
 
-  const visible = entries.filter((e) =>
-    filter === "all" ? true : filter === "unpaid" ? !e["is_paid"] : e["entry_type"] === filter,
-  );
+  const [dayFilter, setDayFilter] = useState("");
+
+  const visible = entries
+    .filter((e) => (filter === "all" ? true : filter === "unpaid" ? !e["is_paid"] : e["entry_type"] === filter))
+    .filter((e) => (dayFilter ? e["call_sheet_id"] === dayFilter : true));
+
+  const visExpense = visible
+    .filter((e) => e["entry_type"] !== "income")
+    .reduce((s, e) => s + num(e["amount"]), 0);
+  const visIncome = visible
+    .filter((e) => e["entry_type"] === "income")
+    .reduce((s, e) => s + num(e["amount"]), 0);
 
   return (
     <div className="space-y-3">
@@ -986,6 +995,33 @@ function EntriesTab({
           </button>
         ))}
       </div>
+
+      {days.length > 0 && (
+        <select value={dayFilter} onChange={(e) => setDayFilter(e.target.value)} className={input}>
+          <option value="" className="bg-background">كل الأيام</option>
+          {days.map((d) => (
+            <option key={d["id"]} value={d["id"] as string} className="bg-background">
+              {d["title"]}{d["shoot_date"] ? ` — ${d["shoot_date"]}` : ""}
+            </option>
+          ))}
+        </select>
+      )}
+
+      <div className="glass-card grid grid-cols-3 gap-2 rounded-2xl p-3 text-center">
+        <div>
+          <div className="text-[10px] text-muted-foreground">عدد الحركات</div>
+          <div className="text-sm font-bold tabular-nums">{visible.length}</div>
+        </div>
+        <div>
+          <div className="text-[10px] text-muted-foreground">مصاريف</div>
+          <div className="text-sm font-bold tabular-nums text-red-400">{visExpense.toLocaleString("en-US")}</div>
+        </div>
+        <div>
+          <div className="text-[10px] text-muted-foreground">إيرادات</div>
+          <div className="text-sm font-bold tabular-nums text-emerald-400">{visIncome.toLocaleString("en-US")}</div>
+        </div>
+      </div>
+
 
       {showForm ? (
         <div className="glass-card space-y-2.5 rounded-2xl p-4">
