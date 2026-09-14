@@ -183,15 +183,20 @@ export const financeWrite = createServerFn({ method: "POST" })
 
     if (data.action === "update") {
       if (data.table === "projects") {
-        let budgetStr = String(values.client_budget ?? "0").replace(/,/g, "");
+        const budgetStr = String(values["client_budget"] ?? "0").replace(/,/g, "");
         let budget = Number(budgetStr);
-        if (isNaN(budget)) budget = 0;
-        
+        if (!Number.isFinite(budget) || budget < 0) budget = 0;
+
+        const rawName = values["client_name"];
+        const clientName = typeof rawName === "string" && rawName.trim() !== "" ? rawName.trim() : null;
+        const rawDue = values["client_due_date"];
+        const dueDate = typeof rawDue === "string" && rawDue !== "" ? rawDue : null;
+
         const { error } = await supabase.rpc("update_project_finance", {
           _project_id: data.projectId,
           _client_budget: budget,
-          _client_name: String(values.client_name ?? ""),
-          _client_due_date: values.client_due_date ?? null,
+          _client_name: clientName as unknown as string,
+          _client_due_date: dueDate as unknown as string,
         });
         if (error) throw error;
         return { id: data.id };
