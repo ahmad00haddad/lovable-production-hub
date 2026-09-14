@@ -843,7 +843,14 @@ function CrewTab({
                 </div>
               </div>
               <button
-                onClick={() => mutate({ projectId, table: "crew_rates", action: "delete", id: r["id"] as string })}
+                onClick={() => {
+                  const msg = paid > 0
+                    ? `${r["person_name"]}: توجد دفعات مسجّلة (${paid.toLocaleString("en-US")}). حذف السطر سيحذفها أيضاً. متابعة؟`
+                    : `حذف ${r["person_name"]} من كشف الأسعار؟`;
+                  if (window.confirm(msg)) {
+                    mutate({ projectId, table: "crew_rates", action: "delete", id: r["id"] as string });
+                  }
+                }}
                 className="shrink-0 text-muted-foreground hover:text-red-400"
                 aria-label="حذف"
               >
