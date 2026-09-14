@@ -786,14 +786,18 @@ function CrewTab({
           <button
             onClick={() => {
               if (!form.person_name.trim()) return toast.error("اكتب الاسم");
+              const rate = Number(String(form.rate).replace(/,/g, "") || 0);
+              const dys = form.rate_type === "flat" ? 1 : Number(String(form.days).replace(/,/g, "") || 1);
+              if (!Number.isFinite(rate) || rate <= 0) return toast.error("أدخل سعراً صحيحاً");
+              if (!Number.isFinite(dys) || dys <= 0) return toast.error("أدخل عدد أيام صحيح");
               mutate({
                 projectId, table: "crew_rates", action: "insert",
                 values: {
                   person_name: form.person_name.trim(),
                   role: form.role.trim() || null,
                   rate_type: form.rate_type,
-                  rate: Number(form.rate || 0),
-                  days: Number(form.days || 1),
+                  rate,
+                  days: dys,
                   team_member_id: form.team_member_id || null,
                   currency,
                 },
