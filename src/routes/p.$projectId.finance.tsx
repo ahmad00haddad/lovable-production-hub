@@ -1165,10 +1165,14 @@ function EntriesTab({
                 </div>
               </div>
               <div className={`shrink-0 text-sm font-black tabular-nums ${e["entry_type"] === "income" ? "text-emerald-400" : "text-red-400"}`}>
-                {e["entry_type"] === "income" ? "+" : "−"}{Number(e["amount"]).toLocaleString("en-US")}
+                {e["entry_type"] === "income" ? "+" : "−"}{num(e["amount"]).toLocaleString("en-US")}
               </div>
               <button
-                onClick={() => mutate({ projectId, table: "finance_entries", action: "delete", id: e["id"] as string })}
+                onClick={() => {
+                  if (window.confirm(`حذف «${e["title"]}»؟`)) {
+                    mutate({ projectId, table: "finance_entries", action: "delete", id: e["id"] as string });
+                  }
+                }}
                 className="shrink-0 text-muted-foreground hover:text-red-400"
                 aria-label="حذف"
               >
@@ -1179,12 +1183,10 @@ function EntriesTab({
         })}
       </div>
 
-      <div className="pt-1 text-center text-[11px] text-muted-foreground">
-        العملة: {money(0, currency).split(" ")[1]}
-      </div>
-      <div className="flex items-center justify-center gap-1 text-[11px] text-muted-foreground">
+      <div className="flex items-center justify-center gap-2 pt-1 text-[11px] text-muted-foreground">
         <TrendingUp size={12} className="text-emerald-400" />
         <TrendingDown size={12} className="text-red-400" />
+        <span>العملة: {currency}</span>
       </div>
     </div>
   );
