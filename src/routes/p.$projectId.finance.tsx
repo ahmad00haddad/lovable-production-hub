@@ -521,11 +521,13 @@ function OverviewTab(props: {
 /* ----------------------------- Days ----------------------------- */
 
 function DaysTab({
-  days, currency, dayActual, onBudget,
+  days, currency, clientBudget, dayBudgetSum, dayActual, onBudget,
 }: {
   projectId: string;
   days: Array<Record<string, any>>;
   currency: string;
+  clientBudget: number;
+  dayBudgetSum: number;
   dayActual: (id: string) => number;
   onBudget: (id: string, budget: number) => void;
 }) {
@@ -540,8 +542,33 @@ function DaysTab({
     );
   }
 
+  const totalDayActual = days.reduce((s, d) => s + dayActual(d["id"] as string), 0);
+
   return (
     <div className="space-y-3">
+      <section className="glass-card grid grid-cols-3 gap-2 rounded-2xl p-4 text-center">
+        <div>
+          <div className="text-[10px] text-muted-foreground">مجموع ميزانيات الأيام</div>
+          <div className="text-sm font-bold tabular-nums">{dayBudgetSum.toLocaleString("en-US")}</div>
+        </div>
+        <div>
+          <div className="text-[10px] text-muted-foreground">مصروف الأيام</div>
+          <div className="text-sm font-bold tabular-nums text-red-400">{totalDayActual.toLocaleString("en-US")}</div>
+        </div>
+        <div>
+          <div className="text-[10px] text-muted-foreground">الفرق</div>
+          <div className={`text-sm font-bold tabular-nums ${dayBudgetSum - totalDayActual >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+            {(dayBudgetSum - totalDayActual).toLocaleString("en-US")}
+          </div>
+        </div>
+      </section>
+
+      {clientBudget > 0 && dayBudgetSum > clientBudget && (
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-center text-[11px] text-red-300">
+          مجموع ميزانيات الأيام ({dayBudgetSum.toLocaleString("en-US")}) أكبر من ميزانية العميل ({clientBudget.toLocaleString("en-US")} {currency})
+        </div>
+      )}
+
       {days.map((d) => {
         const budget = Number(d["day_budget"] ?? 0);
         const actual = dayActual(d["id"] as string);
