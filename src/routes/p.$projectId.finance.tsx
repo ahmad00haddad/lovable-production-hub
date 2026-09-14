@@ -707,7 +707,7 @@ function CrewTab({
   const [showForm, setShowForm] = useState(false);
   const [payFor, setPayFor] = useState<string | null>(null);
   const [payAmount, setPayAmount] = useState("");
-  const [payBy, setPayBy] = useState<"project" | "me">("project");
+  const [payBy, setPayBy] = useState<"project" | "producer">("project");
   const [form, setForm] = useState({
     person_name: "", role: "", rate_type: "day", rate: "", days: "1", team_member_id: "",
   });
@@ -906,7 +906,7 @@ function CrewTab({
                   </button>
                 </div>
                 <div className="mt-2 grid grid-cols-2 gap-2">
-                  {(["project", "me"] as const).map((t) => (
+                  {(["project", "producer"] as const).map((t) => (
                     <button
                       key={t}
                       onClick={() => setPayBy(t)}
