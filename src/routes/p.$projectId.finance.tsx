@@ -1097,13 +1097,15 @@ function EntriesTab({
           <button
             onClick={() => {
               if (!form.title.trim()) return toast.error("اكتب اسم البند");
+              const amt = Number(String(form.amount).replace(/,/g, "") || 0);
+              if (!Number.isFinite(amt) || amt <= 0) return toast.error("أدخل مبلغاً صحيحاً");
               mutate({
                 projectId, table: "finance_entries", action: "insert",
                 values: {
                   entry_type: form.entry_type,
                   title: form.title.trim(),
                   category: form.category,
-                  amount: Number(form.amount || 0),
+                  amount: amt,
                   party: form.party.trim() || null,
                   entry_date: form.entry_date || null,
                   call_sheet_id: form.call_sheet_id || null,
