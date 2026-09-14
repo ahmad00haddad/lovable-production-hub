@@ -881,9 +881,12 @@ function CrewTab({
                   />
                   <button
                     onClick={() => {
+                      const amt = Number(String(payAmount).replace(/,/g, "") || 0);
+                      if (!Number.isFinite(amt) || amt <= 0) return toast.error("أدخل مبلغاً صحيحاً");
+                      if (amt > due + 0.001) return toast.error(`المبلغ أكبر من المتبقي (${due.toLocaleString("en-US")})`);
                       mutate({
                         projectId, table: "crew_payments", action: "insert",
-                        values: { crew_rate_id: r["id"], amount: Number(payAmount || 0) },
+                        values: { crew_rate_id: r["id"], amount: amt, paid_by: payBy },
                       });
                       setPayAmount("");
                       setPayFor(null);
@@ -893,10 +896,23 @@ function CrewTab({
                     حفظ
                   </button>
                 </div>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {(["project", "me"] as const).map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setPayBy(t)}
+                      className={`rounded-xl py-2 text-[11px] font-bold transition ${
+                        payBy === t ? "bg-amber-gradient text-black" : "border border-white/10 bg-white/5"
+                      }`}
+                    >
+                      {t === "project" ? "من كاش المشروع" : "من جيبي"}
+                    </button>
+                  ))}
+                </div>
                 <SwipeToPay disabled={due <= 0} onSwipe={() => {
                   mutate({
                     projectId, table: "crew_payments", action: "insert",
-                    values: { crew_rate_id: r["id"], amount: due },
+                    values: { crew_rate_id: r["id"], amount: due, paid_by: payBy },
                   });
                   setPayFor(null);
                 }} />
