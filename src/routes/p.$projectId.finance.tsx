@@ -706,6 +706,7 @@ function CrewTab({
   const [showForm, setShowForm] = useState(false);
   const [payFor, setPayFor] = useState<string | null>(null);
   const [payAmount, setPayAmount] = useState("");
+  const [payBy, setPayBy] = useState<"project" | "me">("project");
   const [form, setForm] = useState({
     person_name: "", role: "", rate_type: "day", rate: "", days: "1", team_member_id: "",
   });
